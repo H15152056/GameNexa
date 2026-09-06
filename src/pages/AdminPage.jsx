@@ -69,6 +69,21 @@ function AdminPage() {
 
   /*
    * ============================================================
+   * EXISTING GUIDE EDITOR DRAFT
+   *
+   * IMPORTANT:
+   * The editor no longer edits values directly through
+   * mergedGames/currentGuide on every keystroke.
+   *
+   * This separate draft makes typing stable and reliable.
+   * Changes are saved only when the user presses Save.
+   * ============================================================
+   */
+
+  const [editorDraft, setEditorDraft] = useState(null)
+
+  /*
+   * ============================================================
    * MERGED GAME DATA
    * ============================================================
    */
@@ -116,6 +131,7 @@ function AdminPage() {
 
     if (selectedGuide >= guideCount) {
       setSelectedGuide(guideCount - 1)
+      return
     }
 
     if (selectedGuide < 0) {
@@ -125,6 +141,35 @@ function AdminPage() {
     game,
     selectedGuide,
     isCreatingGuide,
+  ])
+
+  /*
+   * ============================================================
+   * LOAD CURRENT GUIDE INTO EDITOR DRAFT
+   *
+   * This runs when changing game/guide or when a saved change
+   * causes the actual guide data to change.
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (isCreatingGuide) {
+      setEditorDraft(null)
+      return
+    }
+
+    if (!currentGuide) {
+      setEditorDraft(null)
+      return
+    }
+
+    setEditorDraft(cloneGuide(currentGuide))
+  }, [
+    selectedGame,
+    selectedGuide,
+    isCreatingGuide,
+    currentGuide?.cmsGuideId,
+    currentGuide?.cmsBuiltInGuideIndex,
   ])
 
   /*
@@ -270,6 +315,7 @@ function AdminPage() {
 
     setAuthenticated(false)
     setContent({})
+    setEditorDraft(null)
     setMessage('')
     setIsCreatingGuide(false)
   }
@@ -358,11 +404,13 @@ function AdminPage() {
       })
     )
 
+    setEditorDraft(null)
     setMessage('')
   }
 
   function cancelNewGuide() {
     setIsCreatingGuide(false)
+    setEditorDraft(null)
     setMessage('')
   }
 
@@ -597,63 +645,187 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * CMS GUIDE LOCAL UPDATE
+   * EDITOR DRAFT HELPERS
    * ============================================================
    */
 
-  function updateCMSGuideLocally(
-    updatedGuide
+  function updateEditorField(
+    field,
+    value
   ) {
-    if (
-      !game ||
-      !updatedGuide?.cmsGuideId
-    ) {
-      return
-    }
-
-    const key = cmsGuidesKey(game.slug)
-
-    setContent((previous) => {
-      let registry = []
-
-      try {
-        registry = previous[key]
-          ? JSON.parse(previous[key])
-          : []
-      } catch {
-        registry = []
-      }
-
-      if (!Array.isArray(registry)) {
-        registry = []
-      }
-
-      const cmsIndex =
-        registry.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            updatedGuide.cmsGuideId
-        )
-
-      if (cmsIndex < 0) {
+    setEditorDraft((previous) => {
+      if (!previous) {
         return previous
-      }
-
-      const updatedRegistry = [
-        ...registry,
-      ]
-
-      updatedRegistry[cmsIndex] = {
-        ...updatedRegistry[cmsIndex],
-        ...cloneGuide(updatedGuide),
-        cmsGuideId:
-          updatedGuide.cmsGuideId,
       }
 
       return {
         ...previous,
-        [key]:
-          JSON.stringify(updatedRegistry),
+        [field]: value,
+      }
+    })
+  }
+
+  function updateEditorSectionHeading(
+    sectionIndex,
+    value
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: previous.content.map(
+          (section, index) =>
+            index === sectionIndex
+              ? {
+                  ...section,
+                  heading: value,
+                }
+              : section
+        ),
+      }
+    })
+  }
+
+  function updateEditorParagraph(
+    sectionIndex,
+    paragraphIndex,
+    value
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: previous.content.map(
+          (section, index) => {
+            if (index !== sectionIndex) {
+              return section
+            }
+
+            return {
+              ...section,
+              paragraphs:
+                (section.paragraphs || []).map(
+                  (
+                    paragraph,
+                    index2
+                  ) =>
+                    index2 === paragraphIndex
+                      ? value
+                      : paragraph
+                ),
+            }
+          }
+        ),
+      }
+    })
+  }
+
+  function addEditorSection() {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: [
+          ...(previous.content || []),
+          {
+            heading: 'New Section',
+            paragraphs: [
+              'Write your paragraph here.',
+            ],
+          },
+        ],
+      }
+    })
+  }
+
+  function deleteEditorSection(
+    sectionIndex
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: (
+          previous.content || []
+        ).filter(
+          (_, index) =>
+            index !== sectionIndex
+        ),
+      }
+    })
+  }
+
+  function addEditorParagraph(
+    sectionIndex
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: (
+          previous.content || []
+        ).map(
+          (section, index) =>
+            index === sectionIndex
+              ? {
+                  ...section,
+                  paragraphs: [
+                    ...(section.paragraphs ||
+                      []),
+                    'Write your paragraph here.',
+                  ],
+                }
+              : section
+        ),
+      }
+    })
+  }
+
+  function deleteEditorParagraph(
+    sectionIndex,
+    paragraphIndex
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: (
+          previous.content || []
+        ).map(
+          (section, index) =>
+            index === sectionIndex
+              ? {
+                  ...section,
+                  paragraphs:
+                    (
+                      section.paragraphs ||
+                      []
+                    ).filter(
+                      (_, index2) =>
+                        index2 !==
+                        paragraphIndex
+                    ),
+                }
+              : section
+        ),
       }
     })
   }
@@ -751,6 +923,7 @@ function AdminPage() {
           )
         )
 
+        setEditorDraft(null)
         setIsCreatingGuide(false)
 
         setMessage(
@@ -823,6 +996,7 @@ function AdminPage() {
         )
       )
 
+      setEditorDraft(null)
       setIsCreatingGuide(false)
 
       setMessage(
@@ -845,18 +1019,18 @@ function AdminPage() {
    */
 
   async function saveCMSGuide() {
-    if (!game || !currentGuide) {
+    if (!game || !currentGuide || !editorDraft) {
       return
     }
 
-    if (!currentGuide.title.trim()) {
+    if (!editorDraft.title.trim()) {
       setMessage(
         'Please enter a guide title.'
       )
       return
     }
 
-    if (!currentGuide.desc.trim()) {
+    if (!editorDraft.desc.trim()) {
       setMessage(
         'Please enter a guide description.'
       )
@@ -907,22 +1081,22 @@ function AdminPage() {
           currentGuide.cmsGuideId,
 
         icon:
-          currentGuide.icon?.trim() ||
+          editorDraft.icon?.trim() ||
           '📖',
 
         title:
-          currentGuide.title?.trim() ||
+          editorDraft.title?.trim() ||
           '',
 
         desc:
-          currentGuide.desc?.trim() ||
+          editorDraft.desc?.trim() ||
           '',
 
         content:
           Array.isArray(
-            currentGuide.content
+            editorDraft.content
           )
-            ? currentGuide.content.map(
+            ? editorDraft.content.map(
                 (section) => ({
                   heading:
                     section?.heading?.trim() ||
@@ -970,430 +1144,16 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * EXISTING GUIDE EDITOR
-   * ============================================================
-   */
-
-  function updateExistingGuideField(
-    field,
-    value
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    /*
-     * CMS-created guides
-     *
-     * These are edited directly inside the
-     * CMS guide registry using cmsGuideId.
-     */
-
-    if (isEditingCMSGuide) {
-      updateCMSGuideLocally({
-        ...currentGuide,
-        [field]: value,
-      })
-
-      return
-    }
-
-    /*
-     * Built-in guides
-     *
-     * IMPORTANT:
-     * Never use selectedGuide as the CMS identity
-     * when a built-in guide has been deleted.
-     *
-     * cmsBuiltInGuideIndex is the ORIGINAL index
-     * from gamesData.js and therefore stays stable.
-     */
-
-    const guideIndex =
-      currentGuide.cmsBuiltInGuideIndex ??
-      selectedGuide
-
-    /*
-     * TITLE
-     */
-
-    if (field === 'title') {
-      updateLocalContent(
-        cmsTitleKey(
-          game.slug,
-          guideIndex
-        ),
-        value
-      )
-
-      return
-    }
-
-    /*
-     * DESCRIPTION
-     */
-
-    if (field === 'desc') {
-      updateLocalContent(
-        cmsDescKey(
-          game.slug,
-          guideIndex
-        ),
-        value
-      )
-
-      return
-    }
-
-    /*
-     * Built-in guide icons are part of
-     * gamesData.js and are not currently stored
-     * by the CMS.
-     *
-     * Most importantly, do NOT save the icon
-     * into the description key.
-     */
-  }
-
-  function getEditorGuide() {
-    if (isCreatingGuide) {
-      return newGuide
-    }
-
-    if (!currentGuide) {
-      return null
-    }
-
-    return currentGuide
-  }
-
-  const editorGuide =
-    getEditorGuide()
-
-  /*
-   * ============================================================
-   * EXISTING SECTION HEADING
-   * ============================================================
-   */
-
-  function updateExistingSectionHeading(
-    sectionIndex,
-    value
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    if (isEditingCMSGuide) {
-      const updatedContent =
-        (currentGuide.content || []).map(
-          (section, index) =>
-            index === sectionIndex
-              ? {
-                  ...section,
-                  heading: value,
-                }
-              : section
-        )
-
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: updatedContent,
-      })
-
-      return
-    }
-
-    const guideIndex =
-      currentGuide.cmsBuiltInGuideIndex ??
-      selectedGuide
-
-    const key = cmsHeadingKey(
-      game.slug,
-      guideIndex,
-      sectionIndex
-    )
-
-    updateLocalContent(
-      key,
-      value
-    )
-  }
-
-  /*
-   * ============================================================
-   * EXISTING PARAGRAPH
-   * ============================================================
-   */
-
-  function updateExistingParagraph(
-    sectionIndex,
-    paragraphIndex,
-    value
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    if (isEditingCMSGuide) {
-      const updatedContent =
-        (currentGuide.content || []).map(
-          (section, index) => {
-            if (index !== sectionIndex) {
-              return section
-            }
-
-            return {
-              ...section,
-              paragraphs:
-                (
-                  section.paragraphs ||
-                  []
-                ).map(
-                  (
-                    paragraph,
-                    index2
-                  ) =>
-                    index2 === paragraphIndex
-                      ? value
-                      : paragraph
-                ),
-            }
-          }
-        )
-
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: updatedContent,
-      })
-
-      return
-    }
-
-    const guideIndex =
-      currentGuide.cmsBuiltInGuideIndex ??
-      selectedGuide
-
-    const key = cmsKey(
-      game.slug,
-      guideIndex,
-      sectionIndex,
-      paragraphIndex
-    )
-
-    updateLocalContent(
-      key,
-      value
-    )
-  }
-
-  /*
-   * ============================================================
-   * ADD EXISTING SECTION
-   * ============================================================
-   */
-
-  function addExistingSection() {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    const newSection = {
-      heading: 'New Section',
-      paragraphs: [
-        'Write your paragraph here.',
-      ],
-    }
-
-    if (isEditingCMSGuide) {
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: [
-          ...(currentGuide.content || []),
-          newSection,
-        ],
-      })
-
-      return
-    }
-
-    const structure =
-      Array.isArray(
-        currentGuide.content
-      )
-        ? currentGuide.content
-        : []
-
-    updateStructureLocally([
-      ...structure,
-      newSection,
-    ])
-  }
-
-  /*
-   * ============================================================
-   * DELETE EXISTING SECTION
-   * ============================================================
-   */
-
-  function deleteExistingSection(
-    sectionIndex
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    const updatedContent =
-      (
-        currentGuide.content || []
-      ).filter(
-        (_, index) =>
-          index !== sectionIndex
-      )
-
-    if (isEditingCMSGuide) {
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: updatedContent,
-      })
-
-      return
-    }
-
-    updateStructureLocally(
-      updatedContent
-    )
-  }
-
-  /*
-   * ============================================================
-   * ADD EXISTING PARAGRAPH
-   * ============================================================
-   */
-
-  function addExistingParagraph(
-    sectionIndex
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    const updatedContent =
-      (
-        currentGuide.content || []
-      ).map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                paragraphs: [
-                  ...(section.paragraphs ||
-                    []),
-                  'Write your paragraph here.',
-                ],
-              }
-            : section
-      )
-
-    if (isEditingCMSGuide) {
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: updatedContent,
-      })
-
-      return
-    }
-
-    updateStructureLocally(
-      updatedContent
-    )
-  }
-
-  /*
-   * ============================================================
-   * DELETE EXISTING PARAGRAPH
-   * ============================================================
-   */
-
-  function deleteExistingParagraph(
-    sectionIndex,
-    paragraphIndex
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    const updatedContent =
-      (
-        currentGuide.content || []
-      ).map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                paragraphs:
-                  (
-                    section.paragraphs ||
-                    []
-                  ).filter(
-                    (_, index2) =>
-                      index2 !==
-                      paragraphIndex
-                  ),
-              }
-            : section
-      )
-
-    if (isEditingCMSGuide) {
-      updateCMSGuideLocally({
-        ...currentGuide,
-        content: updatedContent,
-      })
-
-      return
-    }
-
-    updateStructureLocally(
-      updatedContent
-    )
-  }
-
-  /*
-   * ============================================================
-   * UPDATE BUILT-IN STRUCTURE
-   * ============================================================
-   */
-
-  function updateStructureLocally(
-    structure
-  ) {
-    if (!game || !currentGuide) {
-      return
-    }
-
-    const guideIndex =
-      currentGuide.cmsBuiltInGuideIndex ??
-      selectedGuide
-
-    const key = cmsStructureKey(
-      game.slug,
-      guideIndex
-    )
-
-    updateLocalContent(
-      key,
-      JSON.stringify(structure)
-    )
-  }
-
-  /*
-   * ============================================================
    * SAVE EXISTING GUIDE
    * ============================================================
    */
 
   async function saveExistingGuide() {
-    if (!game || !currentGuide) {
+    if (
+      !game ||
+      !currentGuide ||
+      !editorDraft
+    ) {
       return
     }
 
@@ -1440,22 +1200,16 @@ function AdminPage() {
           guideIndex
         )
 
-      const title = getValue(
-        titleKey,
-        currentGuide.title
-      )
+      const title =
+        editorDraft.title || ''
 
-      const desc = getValue(
-        descKey,
-        currentGuide.desc
-      )
+      const desc =
+        editorDraft.desc || ''
 
-      const structure = getValue(
-        structureKey,
+      const structure =
         JSON.stringify(
-          currentGuide.content || []
+          editorDraft.content || []
         )
-      )
 
       /*
        * Save title.
@@ -1579,6 +1333,7 @@ function AdminPage() {
 
     setSelectedGame(slug)
     setSelectedGuide(0)
+    setEditorDraft(null)
     setIsCreatingGuide(false)
     setMessage('')
   }
@@ -1588,6 +1343,7 @@ function AdminPage() {
       Number(event.target.value)
     )
 
+    setEditorDraft(null)
     setIsCreatingGuide(false)
     setMessage('')
   }
@@ -1691,6 +1447,11 @@ function AdminPage() {
    * RENDER: ADMIN EDITOR
    * ============================================================
    */
+
+  const editorGuide =
+    isCreatingGuide
+      ? newGuide
+      : editorDraft
 
   return (
     <div className="admin-page">
@@ -2115,7 +1876,7 @@ function AdminPage() {
                       '📖'
                     }
                     onChange={(event) =>
-                      updateExistingGuideField(
+                      updateEditorField(
                         'icon',
                         event.target.value
                       )
@@ -2141,20 +1902,11 @@ function AdminPage() {
                   <input
                     type="text"
                     value={
-                      isEditingCMSGuide
-                        ? currentGuide.title ||
-                          ''
-                        : getValue(
-                            cmsTitleKey(
-                              game.slug,
-                              currentGuide.cmsBuiltInGuideIndex ??
-                                selectedGuide
-                            ),
-                            currentGuide.title
-                          )
+                      editorGuide.title ||
+                      ''
                     }
                     onChange={(event) =>
-                      updateExistingGuideField(
+                      updateEditorField(
                         'title',
                         event.target.value
                       )
@@ -2171,20 +1923,11 @@ function AdminPage() {
 
                   <textarea
                     value={
-                      isEditingCMSGuide
-                        ? currentGuide.desc ||
-                          ''
-                        : getValue(
-                            cmsDescKey(
-                              game.slug,
-                              currentGuide.cmsBuiltInGuideIndex ??
-                                selectedGuide
-                            ),
-                            currentGuide.desc
-                          )
+                      editorGuide.desc ||
+                      ''
                     }
                     onChange={(event) =>
-                      updateExistingGuideField(
+                      updateEditorField(
                         'desc',
                         event.target.value
                       )
@@ -2207,7 +1950,7 @@ function AdminPage() {
                   <button
                     type="button"
                     onClick={
-                      addExistingSection
+                      addEditorSection
                     }
                     className="admin-secondary-button"
                   >
@@ -2239,7 +1982,7 @@ function AdminPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            deleteExistingSection(
+                            deleteEditorSection(
                               sectionIndex
                             )
                           }
@@ -2263,7 +2006,7 @@ function AdminPage() {
                             ''
                           }
                           onChange={(event) =>
-                            updateExistingSectionHeading(
+                            updateEditorSectionHeading(
                               sectionIndex,
                               event.target.value
                             )
@@ -2303,7 +2046,7 @@ function AdminPage() {
                                 onChange={(
                                   event
                                 ) =>
-                                  updateExistingParagraph(
+                                  updateEditorParagraph(
                                     sectionIndex,
                                     paragraphIndex,
                                     event.target
@@ -2318,7 +2061,7 @@ function AdminPage() {
                             <button
                               type="button"
                               onClick={() =>
-                                deleteExistingParagraph(
+                                deleteEditorParagraph(
                                   sectionIndex,
                                   paragraphIndex
                                 )
@@ -2335,7 +2078,7 @@ function AdminPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          addExistingParagraph(
+                          addEditorParagraph(
                             sectionIndex
                           )
                         }
