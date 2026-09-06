@@ -58,11 +58,11 @@ function AdminPage() {
   const [selectedGame, setSelectedGame] = useState('genshin')
   const [selectedGuide, setSelectedGuide] = useState(0)
 
-  const [isCreatingGuide, setIsCreatingGuide] =
-    useState(false)
+  const [isCreatingGuide, setIsCreatingGuide] = useState(false)
 
-  const [newGuide, setNewGuide] =
-    useState(() => cloneGuide(EMPTY_GUIDE))
+  const [newGuide, setNewGuide] = useState(() =>
+    cloneGuide(EMPTY_GUIDE)
+  )
 
   /*
    * ============================================================
@@ -100,10 +100,6 @@ function AdminPage() {
   const originalGuideCount =
     baseGame?.guides?.length || 0
 
-  /*
-   * CMS guide is identified directly by cmsGuideId.
-   * This is safer than relying on guide position/index.
-   */
   const isEditingCMSGuide =
     !isCreatingGuide &&
     !!currentGuide?.cmsGuideId
@@ -119,13 +115,10 @@ function AdminPage() {
 
     async function checkSession() {
       try {
-        const response = await fetch(
-          '/api/admin/check',
-          {
-            credentials: 'include',
-            cache: 'no-store',
-          }
-        )
+        const response = await fetch('/api/admin/check', {
+          credentials: 'include',
+          cache: 'no-store',
+        })
 
         const data = await response.json()
 
@@ -159,8 +152,15 @@ function AdminPage() {
    */
 
   async function loadContent() {
-    const data = await fetchCMSContent()
-    setContent(data || {})
+    try {
+      const data = await fetchCMSContent()
+      setContent(data || {})
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to load CMS content.'
+      )
+    }
   }
 
   useEffect(() => {
@@ -182,7 +182,9 @@ function AdminPage() {
     setMessage('')
 
     if (!password.trim()) {
-      setLoginError('Please enter the admin password.')
+      setLoginError(
+        'Please enter the admin password.'
+      )
       return
     }
 
@@ -343,8 +345,9 @@ function AdminPage() {
     sectionIndex,
     value
   ) {
-    setNewGuide((previous) => {
-      const content = previous.content.map(
+    setNewGuide((previous) => ({
+      ...previous,
+      content: previous.content.map(
         (section, index) =>
           index === sectionIndex
             ? {
@@ -352,13 +355,8 @@ function AdminPage() {
                 heading: value,
               }
             : section
-      )
-
-      return {
-        ...previous,
-        content,
-      }
-    })
+      ),
+    }))
   }
 
   function updateNewParagraph(
@@ -366,8 +364,9 @@ function AdminPage() {
     paragraphIndex,
     value
   ) {
-    setNewGuide((previous) => {
-      const content = previous.content.map(
+    setNewGuide((previous) => ({
+      ...previous,
+      content: previous.content.map(
         (section, index) => {
           if (index !== sectionIndex) {
             return section
@@ -375,21 +374,17 @@ function AdminPage() {
 
           return {
             ...section,
-            paragraphs: section.paragraphs.map(
-              (paragraph, index2) =>
-                index2 === paragraphIndex
-                  ? value
-                  : paragraph
-            ),
+            paragraphs:
+              section.paragraphs.map(
+                (paragraph, index2) =>
+                  index2 === paragraphIndex
+                    ? value
+                    : paragraph
+              ),
           }
         }
-      )
-
-      return {
-        ...previous,
-        content,
-      }
-    })
+      ),
+    }))
   }
 
   function addNewSection() {
@@ -426,7 +421,7 @@ function AdminPage() {
             ? {
                 ...section,
                 paragraphs: [
-                  ...section.paragraphs,
+                  ...(section.paragraphs || []),
                   'Write your paragraph here.',
                 ],
               }
@@ -480,9 +475,7 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const key = cmsGuidesKey(
-        game.slug
-      )
+      const key = cmsGuidesKey(game.slug)
 
       let existingGuides = []
 
@@ -503,8 +496,7 @@ function AdminPage() {
       const guideToSave = {
         cmsGuideId:
           typeof crypto !== 'undefined' &&
-          typeof crypto.randomUUID ===
-            'function'
+          typeof crypto.randomUUID === 'function'
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random()
                 .toString(36)
@@ -517,19 +509,18 @@ function AdminPage() {
 
         desc: newGuide.desc.trim(),
 
-        content:
-          newGuide.content.map(
-            (section) => ({
-              heading:
-                section.heading.trim(),
+        content: newGuide.content.map(
+          (section) => ({
+            heading:
+              section.heading.trim(),
 
-              paragraphs:
-                section.paragraphs.map(
-                  (paragraph) =>
-                    paragraph.trim()
-                ),
-            })
-          ),
+            paragraphs:
+              (section.paragraphs || []).map(
+                (paragraph) =>
+                  paragraph.trim()
+              ),
+          })
+        ),
       }
 
       const updatedGuides = [
@@ -537,12 +528,9 @@ function AdminPage() {
         guideToSave,
       ]
 
-      const value =
-        JSON.stringify(updatedGuides)
-
       await saveContentItem(
         key,
-        value
+        JSON.stringify(updatedGuides)
       )
 
       const newGuideIndex =
@@ -551,9 +539,7 @@ function AdminPage() {
 
       setIsCreatingGuide(false)
 
-      setSelectedGuide(
-        newGuideIndex
-      )
+      setSelectedGuide(newGuideIndex)
 
       setMessage(
         'New guide created successfully.'
@@ -570,7 +556,62 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * DELETE CMS-CREATED GUIDE
+   * CMS GUIDE LOCAL UPDATE
+   * ============================================================
+   */
+
+  function updateCMSGuideLocally(updatedGuide) {
+    if (!game || !updatedGuide?.cmsGuideId) {
+      return
+    }
+
+    const key = cmsGuidesKey(game.slug)
+
+    setContent((previous) => {
+      let registry = []
+
+      try {
+        registry = previous[key]
+          ? JSON.parse(previous[key])
+          : []
+      } catch {
+        registry = []
+      }
+
+      if (!Array.isArray(registry)) {
+        registry = []
+      }
+
+      const cmsIndex = registry.findIndex(
+        (guide) =>
+          guide?.cmsGuideId ===
+          updatedGuide.cmsGuideId
+      )
+
+      if (cmsIndex < 0) {
+        return previous
+      }
+
+      const updatedRegistry = [...registry]
+
+      updatedRegistry[cmsIndex] = {
+        ...updatedRegistry[cmsIndex],
+        ...cloneGuide(updatedGuide),
+        cmsGuideId:
+          updatedGuide.cmsGuideId,
+      }
+
+      return {
+        ...previous,
+        [key]:
+          JSON.stringify(updatedRegistry),
+      }
+    })
+  }
+
+  /*
+   * ============================================================
+   * DELETE CMS GUIDE
    * ============================================================
    */
 
@@ -599,9 +640,7 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const key = cmsGuidesKey(
-        game.slug
-      )
+      const key = cmsGuidesKey(game.slug)
 
       let existingGuides = []
 
@@ -619,10 +658,6 @@ function AdminPage() {
         }
       }
 
-      /*
-       * Find the CMS guide by its permanent ID,
-       * not by its position in the merged guide list.
-       */
       const cmsIndex =
         existingGuides.findIndex(
           (guide) =>
@@ -630,18 +665,7 @@ function AdminPage() {
             currentGuide.cmsGuideId
         )
 
-      const guideAtIndex =
-        cmsIndex >= 0
-          ? existingGuides[cmsIndex]
-          : null
-
-      if (
-        cmsIndex < 0 ||
-        cmsIndex >= existingGuides.length ||
-        !guideAtIndex ||
-        guideAtIndex.cmsGuideId !==
-          currentGuide.cmsGuideId
-      ) {
+      if (cmsIndex < 0) {
         throw new Error(
           'CMS guide could not be found.'
         )
@@ -668,9 +692,7 @@ function AdminPage() {
           originalGuideCount +
             nextCmsIndex
         )
-      } else if (
-        originalGuideCount > 0
-      ) {
+      } else if (originalGuideCount > 0) {
         setSelectedGuide(
           originalGuideCount - 1
         )
@@ -695,7 +717,7 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * UPDATE CMS-CREATED GUIDE
+   * UPDATE CMS GUIDE
    * ============================================================
    */
 
@@ -711,13 +733,18 @@ function AdminPage() {
       return
     }
 
+    if (!currentGuide.desc.trim()) {
+      setMessage(
+        'Please enter a guide description.'
+      )
+      return
+    }
+
     setSaving(true)
     setMessage('')
 
     try {
-      const key = cmsGuidesKey(
-        game.slug
-      )
+      const key = cmsGuidesKey(game.slug)
 
       let existingGuides = []
 
@@ -735,10 +762,6 @@ function AdminPage() {
         }
       }
 
-      /*
-       * Find the guide by CMS ID instead of
-       * assuming its array position.
-       */
       const cmsIndex =
         existingGuides.findIndex(
           (guide) =>
@@ -746,11 +769,7 @@ function AdminPage() {
             currentGuide.cmsGuideId
         )
 
-      if (
-        cmsIndex < 0 ||
-        cmsIndex >=
-          existingGuides.length
-      ) {
+      if (cmsIndex < 0) {
         throw new Error(
           'CMS guide could not be found.'
         )
@@ -758,32 +777,46 @@ function AdminPage() {
 
       const updatedGuide = {
         ...existingGuides[cmsIndex],
-
+        cmsGuideId:
+          currentGuide.cmsGuideId,
         icon:
-          currentGuide.icon || '📖',
-
+          currentGuide.icon?.trim() || '📖',
         title:
-          currentGuide.title || '',
-
+          currentGuide.title?.trim() || '',
         desc:
-          currentGuide.desc || '',
-
+          currentGuide.desc?.trim() || '',
         content:
-          Array.isArray(
-            currentGuide.content
-          )
-            ? currentGuide.content
+          Array.isArray(currentGuide.content)
+            ? currentGuide.content.map(
+                (section) => ({
+                  heading:
+                    section?.heading?.trim() ||
+                    '',
+                  paragraphs:
+                    Array.isArray(
+                      section?.paragraphs
+                    )
+                      ? section.paragraphs.map(
+                          (paragraph) =>
+                            paragraph?.trim() ||
+                            ''
+                        )
+                      : [],
+                })
+              )
             : [],
       }
 
-      existingGuides[cmsIndex] =
+      const updatedGuides = [
+        ...existingGuides,
+      ]
+
+      updatedGuides[cmsIndex] =
         updatedGuide
 
       await saveContentItem(
         key,
-        JSON.stringify(
-          existingGuides
-        )
+        JSON.stringify(updatedGuides)
       )
 
       setMessage(
@@ -810,6 +843,15 @@ function AdminPage() {
     value
   ) {
     if (!game || !currentGuide) {
+      return
+    }
+
+    if (isEditingCMSGuide) {
+      updateCMSGuideLocally({
+        ...currentGuide,
+        [field]: value,
+      })
+
       return
     }
 
@@ -841,8 +883,7 @@ function AdminPage() {
     return currentGuide
   }
 
-  const editorGuide =
-    getEditorGuide()
+  const editorGuide = getEditorGuide()
 
   function updateExistingSectionHeading(
     sectionIndex,
@@ -854,7 +895,7 @@ function AdminPage() {
 
     if (isEditingCMSGuide) {
       const updatedContent =
-        currentGuide.content.map(
+        (currentGuide.content || []).map(
           (section, index) =>
             index === sectionIndex
               ? {
@@ -864,59 +905,21 @@ function AdminPage() {
               : section
         )
 
-      const updatedGuide = {
+      updateCMSGuideLocally({
         ...currentGuide,
         content: updatedContent,
-      }
-
-      setContent((previous) => {
-        const key = cmsGuidesKey(
-          game.slug
-        )
-
-        let registry = []
-
-        try {
-          registry = previous[key]
-            ? JSON.parse(previous[key])
-            : []
-        } catch {
-          registry = []
-        }
-
-        const cmsIndex =
-          registry.findIndex(
-            (guide) =>
-              guide?.cmsGuideId ===
-              currentGuide.cmsGuideId
-          )
-
-        if (cmsIndex >= 0) {
-          registry[cmsIndex] =
-            updatedGuide
-        }
-
-        return {
-          ...previous,
-          [key]:
-            JSON.stringify(registry),
-        }
       })
 
       return
     }
 
-    const key =
-      cmsHeadingKey(
-        game.slug,
-        selectedGuide,
-        sectionIndex
-      )
-
-    updateLocalContent(
-      key,
-      value
+    const key = cmsHeadingKey(
+      game.slug,
+      selectedGuide,
+      sectionIndex
     )
+
+    updateLocalContent(key, value)
   }
 
   function updateExistingParagraph(
@@ -930,24 +933,21 @@ function AdminPage() {
 
     if (isEditingCMSGuide) {
       const updatedContent =
-        currentGuide.content.map(
+        (currentGuide.content || []).map(
           (section, index) => {
-            if (
-              index !== sectionIndex
-            ) {
+            if (index !== sectionIndex) {
               return section
             }
 
             return {
               ...section,
               paragraphs:
-                section.paragraphs.map(
+                (section.paragraphs || []).map(
                   (
                     paragraph,
                     index2
                   ) =>
-                    index2 ===
-                    paragraphIndex
+                    index2 === paragraphIndex
                       ? value
                       : paragraph
                 ),
@@ -955,43 +955,9 @@ function AdminPage() {
           }
         )
 
-      const updatedGuide = {
+      updateCMSGuideLocally({
         ...currentGuide,
         content: updatedContent,
-      }
-
-      setContent((previous) => {
-        const key = cmsGuidesKey(
-          game.slug
-        )
-
-        let registry = []
-
-        try {
-          registry = previous[key]
-            ? JSON.parse(previous[key])
-            : []
-        } catch {
-          registry = []
-        }
-
-        const cmsIndex =
-          registry.findIndex(
-            (guide) =>
-              guide?.cmsGuideId ===
-              currentGuide.cmsGuideId
-          )
-
-        if (cmsIndex >= 0) {
-          registry[cmsIndex] =
-            updatedGuide
-        }
-
-        return {
-          ...previous,
-          [key]:
-            JSON.stringify(registry),
-        }
       })
 
       return
@@ -1004,10 +970,7 @@ function AdminPage() {
       paragraphIndex
     )
 
-    updateLocalContent(
-      key,
-      value
-    )
+    updateLocalContent(key, value)
   }
 
   function addExistingSection() {
@@ -1023,25 +986,19 @@ function AdminPage() {
     }
 
     if (isEditingCMSGuide) {
-      const updatedGuide = {
+      updateCMSGuideLocally({
         ...currentGuide,
         content: [
           ...(currentGuide.content || []),
           newSection,
         ],
-      }
-
-      updateCMSGuideLocally(
-        updatedGuide
-      )
+      })
 
       return
     }
 
     const structure =
-      Array.isArray(
-        currentGuide.content
-      )
+      Array.isArray(currentGuide.content)
         ? currentGuide.content
         : []
 
@@ -1059,7 +1016,7 @@ function AdminPage() {
     }
 
     const updatedContent =
-      currentGuide.content.filter(
+      (currentGuide.content || []).filter(
         (_, index) =>
           index !== sectionIndex
       )
@@ -1073,9 +1030,7 @@ function AdminPage() {
       return
     }
 
-    updateStructureLocally(
-      updatedContent
-    )
+    updateStructureLocally(updatedContent)
   }
 
   function addExistingParagraph(
@@ -1086,14 +1041,13 @@ function AdminPage() {
     }
 
     const updatedContent =
-      currentGuide.content.map(
+      (currentGuide.content || []).map(
         (section, index) =>
           index === sectionIndex
             ? {
                 ...section,
                 paragraphs: [
-                  ...(section.paragraphs ||
-                    []),
+                  ...(section.paragraphs || []),
                   'Write your paragraph here.',
                 ],
               }
@@ -1109,9 +1063,7 @@ function AdminPage() {
       return
     }
 
-    updateStructureLocally(
-      updatedContent
-    )
+    updateStructureLocally(updatedContent)
   }
 
   function deleteExistingParagraph(
@@ -1123,16 +1075,15 @@ function AdminPage() {
     }
 
     const updatedContent =
-      currentGuide.content.map(
+      (currentGuide.content || []).map(
         (section, index) =>
           index === sectionIndex
             ? {
                 ...section,
                 paragraphs:
-                  section.paragraphs.filter(
+                  (section.paragraphs || []).filter(
                     (_, index2) =>
-                      index2 !==
-                      paragraphIndex
+                      index2 !== paragraphIndex
                   ),
               }
             : section
@@ -1147,51 +1098,7 @@ function AdminPage() {
       return
     }
 
-    updateStructureLocally(
-      updatedContent
-    )
-  }
-
-  function updateCMSGuideLocally(
-    updatedGuide
-  ) {
-    if (!game) {
-      return
-    }
-
-    const key = cmsGuidesKey(
-      game.slug
-    )
-
-    setContent((previous) => {
-      let registry = []
-
-      try {
-        registry = previous[key]
-          ? JSON.parse(previous[key])
-          : []
-      } catch {
-        registry = []
-      }
-
-      const cmsIndex =
-        registry.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            updatedGuide?.cmsGuideId
-        )
-
-      if (cmsIndex >= 0) {
-        registry[cmsIndex] =
-          updatedGuide
-      }
-
-      return {
-        ...previous,
-        [key]:
-          JSON.stringify(registry),
-      }
-    })
+    updateStructureLocally(updatedContent)
   }
 
   function updateStructureLocally(
@@ -1201,11 +1108,10 @@ function AdminPage() {
       return
     }
 
-    const key =
-      cmsStructureKey(
-        game.slug,
-        selectedGuide
-      )
+    const key = cmsStructureKey(
+      game.slug,
+      selectedGuide
+    )
 
     updateLocalContent(
       key,
@@ -1233,20 +1139,17 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const guideIndex =
-        selectedGuide
+      const guideIndex = selectedGuide
 
-      const titleKey =
-        cmsTitleKey(
-          game.slug,
-          guideIndex
-        )
+      const titleKey = cmsTitleKey(
+        game.slug,
+        guideIndex
+      )
 
-      const descKey =
-        cmsDescKey(
-          game.slug,
-          guideIndex
-        )
+      const descKey = cmsDescKey(
+        game.slug,
+        guideIndex
+      )
 
       const structureKey =
         cmsStructureKey(
@@ -1254,26 +1157,22 @@ function AdminPage() {
           guideIndex
         )
 
-      const title =
-        getValue(
-          titleKey,
-          currentGuide.title
-        )
+      const title = getValue(
+        titleKey,
+        currentGuide.title
+      )
 
-      const desc =
-        getValue(
-          descKey,
-          currentGuide.desc
-        )
+      const desc = getValue(
+        descKey,
+        currentGuide.desc
+      )
 
-      const structure =
-        getValue(
-          structureKey,
-          JSON.stringify(
-            currentGuide.content ||
-              []
-          )
+      const structure = getValue(
+        structureKey,
+        JSON.stringify(
+          currentGuide.content || []
         )
+      )
 
       await saveContentItem(
         titleKey,
@@ -1290,13 +1189,14 @@ function AdminPage() {
         structure
       )
 
-      /*
-       * Also save individual fields for
-       * backward compatibility with
-       * the original CMS system.
-       */
-      const parsedStructure =
-        JSON.parse(structure)
+      let parsedStructure = []
+
+      try {
+        parsedStructure =
+          JSON.parse(structure)
+      } catch {
+        parsedStructure = []
+      }
 
       for (
         let sectionIndex = 0;
@@ -1318,16 +1218,14 @@ function AdminPage() {
 
         await saveContentItem(
           headingKey,
-          section.heading || ''
+          section?.heading || ''
         )
 
         for (
           let paragraphIndex = 0;
           paragraphIndex <
-          (
-            section.paragraphs ||
-            []
-          ).length;
+          (section?.paragraphs || [])
+            .length;
           paragraphIndex += 1
         ) {
           const paragraphKey =
@@ -1367,8 +1265,7 @@ function AdminPage() {
    */
 
   function handleGameChange(event) {
-    const slug =
-      event.target.value
+    const slug = event.target.value
 
     setSelectedGame(slug)
     setSelectedGuide(0)
@@ -1599,9 +1496,7 @@ function AdminPage() {
                     : selectedGuide
                 }
                 onChange={handleGuideChange}
-                disabled={
-                  isCreatingGuide
-                }
+                disabled={isCreatingGuide}
               >
                 {!isCreatingGuide &&
                   game?.guides?.map(
@@ -1705,9 +1600,7 @@ function AdminPage() {
 
                   <button
                     type="button"
-                    onClick={
-                      addNewSection
-                    }
+                    onClick={addNewSection}
                     className="admin-secondary-button"
                   >
                     + Add Section
@@ -1721,9 +1614,7 @@ function AdminPage() {
                   ) => (
                     <div
                       className="admin-content-section"
-                      key={
-                        sectionIndex
-                      }
+                      key={sectionIndex}
                     >
                       <div className="admin-section-header">
                         <strong>
@@ -1754,9 +1645,7 @@ function AdminPage() {
                           value={
                             section.heading
                           }
-                          onChange={(
-                            event
-                          ) =>
+                          onChange={(event) =>
                             updateNewSectionHeading(
                               sectionIndex,
                               event.target.value
@@ -1765,7 +1654,9 @@ function AdminPage() {
                         />
                       </div>
 
-                      {section.paragraphs.map(
+                      {(
+                        section.paragraphs || []
+                      ).map(
                         (
                           paragraph,
                           paragraphIndex
@@ -1793,8 +1684,7 @@ function AdminPage() {
                                   updateNewParagraph(
                                     sectionIndex,
                                     paragraphIndex,
-                                    event
-                                      .target
+                                    event.target
                                       .value
                                   )
                                 }
@@ -1837,9 +1727,7 @@ function AdminPage() {
               <div className="admin-actions">
                 <button
                   type="button"
-                  onClick={
-                    cancelNewGuide
-                  }
+                  onClick={cancelNewGuide}
                   className="admin-secondary-button"
                   disabled={saving}
                 >
@@ -1848,9 +1736,7 @@ function AdminPage() {
 
                 <button
                   type="button"
-                  onClick={
-                    saveNewGuide
-                  }
+                  onClick={saveNewGuide}
                   className="admin-primary-button"
                   disabled={saving}
                 >
@@ -1878,22 +1764,11 @@ function AdminPage() {
                       editorGuide.icon ||
                       '📖'
                     }
-                    onChange={(event) => {
-                      if (
-                        isEditingCMSGuide
-                      ) {
-                        updateCMSGuideLocally(
-                          {
-                            ...currentGuide,
-                            icon:
-                              event.target
-                                .value,
-                          }
-                        )
-                      }
-                    }}
-                    disabled={
-                      !isEditingCMSGuide
+                    onChange={(event) =>
+                      updateExistingGuideField(
+                        'icon',
+                        event.target.value
+                      )
                     }
                   />
                 </div>
@@ -1907,7 +1782,7 @@ function AdminPage() {
                     type="text"
                     value={
                       isEditingCMSGuide
-                        ? currentGuide.title
+                        ? currentGuide.title || ''
                         : getValue(
                             cmsTitleKey(
                               game.slug,
@@ -1917,21 +1792,10 @@ function AdminPage() {
                           )
                     }
                     onChange={(event) =>
-                      isEditingCMSGuide
-                        ? updateCMSGuideLocally(
-                            {
-                              ...currentGuide,
-                              title:
-                                event
-                                  .target
-                                  .value,
-                            }
-                          )
-                        : updateExistingGuideField(
-                            'title',
-                            event.target
-                              .value
-                          )
+                      updateExistingGuideField(
+                        'title',
+                        event.target.value
+                      )
                     }
                   />
                 </div>
@@ -1944,7 +1808,7 @@ function AdminPage() {
                   <textarea
                     value={
                       isEditingCMSGuide
-                        ? currentGuide.desc
+                        ? currentGuide.desc || ''
                         : getValue(
                             cmsDescKey(
                               game.slug,
@@ -1954,21 +1818,10 @@ function AdminPage() {
                           )
                     }
                     onChange={(event) =>
-                      isEditingCMSGuide
-                        ? updateCMSGuideLocally(
-                            {
-                              ...currentGuide,
-                              desc:
-                                event
-                                  .target
-                                  .value,
-                            }
-                          )
-                        : updateExistingGuideField(
-                            'desc',
-                            event.target
-                              .value
-                          )
+                      updateExistingGuideField(
+                        'desc',
+                        event.target.value
+                      )
                     }
                     rows={4}
                   />
@@ -1993,8 +1846,7 @@ function AdminPage() {
                 </div>
 
                 {(
-                  editorGuide.content ||
-                  []
+                  editorGuide.content || []
                 ).map(
                   (
                     section,
@@ -2002,9 +1854,7 @@ function AdminPage() {
                   ) => (
                     <div
                       className="admin-content-section"
-                      key={
-                        sectionIndex
-                      }
+                      key={sectionIndex}
                     >
                       <div className="admin-section-header">
                         <strong>
@@ -2033,23 +1883,19 @@ function AdminPage() {
                         <input
                           type="text"
                           value={
-                            section.heading
+                            section.heading || ''
                           }
-                          onChange={(
-                            event
-                          ) =>
+                          onChange={(event) =>
                             updateExistingSectionHeading(
                               sectionIndex,
-                              event.target
-                                .value
+                              event.target.value
                             )
                           }
                         />
                       </div>
 
                       {(
-                        section.paragraphs ||
-                        []
+                        section.paragraphs || []
                       ).map(
                         (
                           paragraph,
@@ -2070,7 +1916,7 @@ function AdminPage() {
 
                               <textarea
                                 value={
-                                  paragraph
+                                  paragraph || ''
                                 }
                                 onChange={(
                                   event
@@ -2078,8 +1924,7 @@ function AdminPage() {
                                   updateExistingParagraph(
                                     sectionIndex,
                                     paragraphIndex,
-                                    event
-                                      .target
+                                    event.target
                                       .value
                                   )
                                 }
