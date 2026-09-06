@@ -6,6 +6,7 @@ import './AdminPage.css'
 import { gamesData } from '../data/gamesData'
 import {
   applyCMSOverrides,
+  cmsDeletedGuidesKey,
   cmsDescKey,
   cmsGuidesKey,
   cmsHeadingKey,
@@ -41,6 +42,8 @@ function cloneGuide(guide) {
         }))
       : [],
     cmsGuideId: guide?.cmsGuideId,
+    cmsBuiltInGuideIndex:
+      guide?.cmsBuiltInGuideIndex,
   }
 }
 
@@ -533,9 +536,12 @@ function AdminPage() {
         JSON.stringify(updatedGuides)
       )
 
+      /*
+       * CMS guides are appended after all currently
+       * visible built-in guides.
+       */
       const newGuideIndex =
-        originalGuideCount +
-        existingGuides.length
+        game.guides?.length || 0
 
       setIsCreatingGuide(false)
 
@@ -582,6 +588,11 @@ function AdminPage() {
         registry = []
       }
 
+      /*
+       * Always locate CMS guides by their permanent ID.
+       * This keeps editing safe even when built-in guides
+       * have been deleted and visible indexes have shifted.
+       */
       const cmsIndex = registry.findIndex(
         (guide) =>
           guide?.cmsGuideId ===
@@ -611,16 +622,24 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * DELETE CMS GUIDE
+   * DELETE CURRENT GUIDE
    * ============================================================
+   *
+   * Supports both:
+   *
+   * 1. CMS-created guides
+   * 2. Built-in/static guides
+   *
+   * Built-in guides are not removed from gamesData.js.
+   * Instead, their ORIGINAL index is saved in:
+   *
+   * game.<slug>.deletedGuides
+   *
+   * This makes the deletion permanent through the CMS.
    */
 
-  async function deleteCMSGuide() {
-    if (
-      !game ||
-      !currentGuide ||
-      !isEditingCMSGuide
-    ) {
+  async function deleteCurrentGuide() {
+    if (!game || !currentGuide) {
       return
     }
 
@@ -640,65 +659,152 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const key = cmsGuidesKey(game.slug)
+      /*
+       * --------------------------------------------------------
+       * CMS GUIDE
+       * --------------------------------------------------------
+       */
 
-      let existingGuides = []
+      if (isEditingCMSGuide) {
+        const key = cmsGuidesKey(game.slug)
 
-      if (content[key]) {
+        let existingGuides = []
+
+        if (content[key]) {
+          try {
+            const parsed = JSON.parse(
+              content[key]
+            )
+
+            if (Array.isArray(parsed)) {
+              existingGuides = parsed
+            }
+          } catch {
+            existingGuides = []
+          }
+        }
+
+        const cmsIndex =
+          existingGuides.findIndex(
+            (guide) =>
+              guide?.cmsGuideId ===
+              currentGuide.cmsGuideId
+          )
+
+        if (cmsIndex < 0) {
+          throw new Error(
+            'CMS guide could not be found.'
+          )
+        }
+
+        const updatedGuides =
+          existingGuides.filter(
+            (_, index) =>
+              index !== cmsIndex
+          )
+
+        await saveContentItem(
+          key,
+          JSON.stringify(updatedGuides)
+        )
+
+        /*
+         * After deleting a CMS guide, keep the editor
+         * on a valid guide.
+         */
+        const remainingGuideCount =
+          game.guides?.length
+            ? game.guides.length - 1
+            : 0
+
+        setSelectedGuide(
+          Math.max(
+            0,
+            Math.min(
+              selectedGuide,
+              remainingGuideCount - 1
+            )
+          )
+        )
+
+        setIsCreatingGuide(false)
+
+        setMessage(
+          'Guide deleted successfully.'
+        )
+
+        return
+      }
+
+      /*
+       * --------------------------------------------------------
+       * BUILT-IN GUIDE
+       * --------------------------------------------------------
+       *
+       * IMPORTANT:
+       * Use cmsBuiltInGuideIndex, NOT selectedGuide.
+       *
+       * selectedGuide is the current visible index and changes
+       * when other built-in guides are deleted.
+       */
+
+      const builtInGuideIndex =
+        Number.isInteger(
+          currentGuide.cmsBuiltInGuideIndex
+        )
+          ? currentGuide.cmsBuiltInGuideIndex
+          : selectedGuide
+
+      const deletedKey =
+        cmsDeletedGuidesKey(game.slug)
+
+      let deletedIndexes = []
+
+      if (content[deletedKey]) {
         try {
           const parsed = JSON.parse(
-            content[key]
+            content[deletedKey]
           )
 
           if (Array.isArray(parsed)) {
-            existingGuides = parsed
+            deletedIndexes = parsed
+              .map((index) => Number(index))
+              .filter((index) =>
+                Number.isInteger(index)
+              )
           }
         } catch {
-          existingGuides = []
+          deletedIndexes = []
         }
       }
 
-      const cmsIndex =
-        existingGuides.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            currentGuide.cmsGuideId
+      if (
+        !deletedIndexes.includes(
+          builtInGuideIndex
         )
-
-      if (cmsIndex < 0) {
-        throw new Error(
-          'CMS guide could not be found.'
-        )
+      ) {
+        deletedIndexes = [
+          ...deletedIndexes,
+          builtInGuideIndex,
+        ].sort((a, b) => a - b)
       }
-
-      const updatedGuides =
-        existingGuides.filter(
-          (_, index) =>
-            index !== cmsIndex
-        )
 
       await saveContentItem(
-        key,
-        JSON.stringify(updatedGuides)
+        deletedKey,
+        JSON.stringify(deletedIndexes)
       )
 
-      if (updatedGuides.length > 0) {
-        const nextCmsIndex = Math.min(
-          cmsIndex,
-          updatedGuides.length - 1
-        )
-
-        setSelectedGuide(
-          originalGuideCount +
-            nextCmsIndex
-        )
-      } else if (originalGuideCount > 0) {
-        setSelectedGuide(
-          originalGuideCount - 1
-        )
-      } else {
-        setSelectedGuide(0)
-      }
+      /*
+       * If there is a guide before the deleted guide,
+       * select that guide. Otherwise select index 0.
+       *
+       * Because the deleted guide disappears from the
+       * merged data after content state updates, this
+       * remains a valid visible index.
+       */
+      setSelectedGuide(
+        Math.max(0, selectedGuide - 1)
+      )
 
       setIsCreatingGuide(false)
 
@@ -855,7 +961,13 @@ function AdminPage() {
       return
     }
 
-    const guideIndex = selectedGuide
+    /*
+     * Built-in guide CMS data must always use its
+     * ORIGINAL gamesData index.
+     */
+    const guideIndex =
+      currentGuide.cmsBuiltInGuideIndex ??
+      selectedGuide
 
     const key =
       field === 'title'
@@ -913,9 +1025,13 @@ function AdminPage() {
       return
     }
 
+    const guideIndex =
+      currentGuide.cmsBuiltInGuideIndex ??
+      selectedGuide
+
     const key = cmsHeadingKey(
       game.slug,
-      selectedGuide,
+      guideIndex,
       sectionIndex
     )
 
@@ -963,9 +1079,13 @@ function AdminPage() {
       return
     }
 
+    const guideIndex =
+      currentGuide.cmsBuiltInGuideIndex ??
+      selectedGuide
+
     const key = cmsKey(
       game.slug,
-      selectedGuide,
+      guideIndex,
       sectionIndex,
       paragraphIndex
     )
@@ -1108,9 +1228,13 @@ function AdminPage() {
       return
     }
 
+    const guideIndex =
+      currentGuide.cmsBuiltInGuideIndex ??
+      selectedGuide
+
     const key = cmsStructureKey(
       game.slug,
-      selectedGuide
+      guideIndex
     )
 
     updateLocalContent(
@@ -1139,7 +1263,14 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const guideIndex = selectedGuide
+      /*
+       * IMPORTANT:
+       * Use ORIGINAL built-in guide index so deleting
+       * another guide does not change the CMS key.
+       */
+      const guideIndex =
+        currentGuide.cmsBuiltInGuideIndex ??
+        selectedGuide
 
       const titleKey = cmsTitleKey(
         game.slug,
@@ -1786,7 +1917,8 @@ function AdminPage() {
                         : getValue(
                             cmsTitleKey(
                               game.slug,
-                              selectedGuide
+                              currentGuide.cmsBuiltInGuideIndex ??
+                                selectedGuide
                             ),
                             currentGuide.title
                           )
@@ -1812,7 +1944,8 @@ function AdminPage() {
                         : getValue(
                             cmsDescKey(
                               game.slug,
-                              selectedGuide
+                              currentGuide.cmsBuiltInGuideIndex ??
+                                selectedGuide
                             ),
                             currentGuide.desc
                           )
@@ -1966,18 +2099,18 @@ function AdminPage() {
 
               <div className="admin-actions">
 
-                {isEditingCMSGuide && (
-                  <button
-                    type="button"
-                    onClick={deleteCMSGuide}
-                    className="admin-danger-button"
-                    disabled={saving}
-                  >
-                    {saving
-                      ? 'Deleting...'
-                      : 'Delete Guide'}
-                  </button>
-                )}
+                {/* Delete is now available for BOTH
+                    built-in and CMS-created guides. */}
+                <button
+                  type="button"
+                  onClick={deleteCurrentGuide}
+                  className="admin-danger-button"
+                  disabled={saving}
+                >
+                  {saving
+                    ? 'Deleting...'
+                    : 'Delete Guide'}
+                </button>
 
                 <button
                   type="button"
