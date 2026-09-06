@@ -68,6 +68,8 @@ function AdminPage() {
    * ============================================================
    * MERGED GAME DATA
    * ============================================================
+   *
+   * This combines gamesData.js with all CMS-created guides.
    */
 
   const mergedGames = useMemo(() => {
@@ -97,15 +99,15 @@ function AdminPage() {
       ? game.guides[selectedGuide]
       : null
 
+  /*
+   * A CMS-created guide starts after all original guides.
+   */
   const originalGuideCount =
     baseGame?.guides?.length || 0
 
-  /*
-   * CMS guide is identified directly by cmsGuideId.
-   * This is safer than relying on guide position/index.
-   */
   const isEditingCMSGuide =
     !isCreatingGuide &&
+    selectedGuide >= originalGuideCount &&
     !!currentGuide?.cmsGuideId
 
   /*
@@ -570,131 +572,6 @@ function AdminPage() {
 
   /*
    * ============================================================
-   * DELETE CMS-CREATED GUIDE
-   * ============================================================
-   */
-
-  async function deleteCMSGuide() {
-    if (
-      !game ||
-      !currentGuide ||
-      !isEditingCMSGuide
-    ) {
-      return
-    }
-
-    const guideTitle =
-      currentGuide.title?.trim() ||
-      'this guide'
-
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${guideTitle}"? This cannot be undone.`
-    )
-
-    if (!confirmed) {
-      return
-    }
-
-    setSaving(true)
-    setMessage('')
-
-    try {
-      const key = cmsGuidesKey(
-        game.slug
-      )
-
-      let existingGuides = []
-
-      if (content[key]) {
-        try {
-          const parsed = JSON.parse(
-            content[key]
-          )
-
-          if (Array.isArray(parsed)) {
-            existingGuides = parsed
-          }
-        } catch {
-          existingGuides = []
-        }
-      }
-
-      /*
-       * Find the CMS guide by its permanent ID,
-       * not by its position in the merged guide list.
-       */
-      const cmsIndex =
-        existingGuides.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            currentGuide.cmsGuideId
-        )
-
-      const guideAtIndex =
-        cmsIndex >= 0
-          ? existingGuides[cmsIndex]
-          : null
-
-      if (
-        cmsIndex < 0 ||
-        cmsIndex >= existingGuides.length ||
-        !guideAtIndex ||
-        guideAtIndex.cmsGuideId !==
-          currentGuide.cmsGuideId
-      ) {
-        throw new Error(
-          'CMS guide could not be found.'
-        )
-      }
-
-      const updatedGuides =
-        existingGuides.filter(
-          (_, index) =>
-            index !== cmsIndex
-        )
-
-      await saveContentItem(
-        key,
-        JSON.stringify(updatedGuides)
-      )
-
-      if (updatedGuides.length > 0) {
-        const nextCmsIndex = Math.min(
-          cmsIndex,
-          updatedGuides.length - 1
-        )
-
-        setSelectedGuide(
-          originalGuideCount +
-            nextCmsIndex
-        )
-      } else if (
-        originalGuideCount > 0
-      ) {
-        setSelectedGuide(
-          originalGuideCount - 1
-        )
-      } else {
-        setSelectedGuide(0)
-      }
-
-      setIsCreatingGuide(false)
-
-      setMessage(
-        'Guide deleted successfully.'
-      )
-    } catch (error) {
-      setMessage(
-        error?.message ||
-          'Failed to delete guide.'
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /*
-   * ============================================================
    * UPDATE CMS-CREATED GUIDE
    * ============================================================
    */
@@ -735,16 +612,9 @@ function AdminPage() {
         }
       }
 
-      /*
-       * Find the guide by CMS ID instead of
-       * assuming its array position.
-       */
       const cmsIndex =
-        existingGuides.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            currentGuide.cmsGuideId
-        )
+        selectedGuide -
+        originalGuideCount
 
       if (
         cmsIndex < 0 ||
@@ -869,6 +739,11 @@ function AdminPage() {
         content: updatedContent,
       }
 
+      /*
+       * Update the merged editor locally.
+       * The actual save happens when
+       * "Save Changes" is pressed.
+       */
       setContent((previous) => {
         const key = cmsGuidesKey(
           game.slug
@@ -885,13 +760,12 @@ function AdminPage() {
         }
 
         const cmsIndex =
-          registry.findIndex(
-            (guide) =>
-              guide?.cmsGuideId ===
-              currentGuide.cmsGuideId
-          )
+          selectedGuide -
+          originalGuideCount
 
-        if (cmsIndex >= 0) {
+        if (
+          registry[cmsIndex]
+        ) {
           registry[cmsIndex] =
             updatedGuide
         }
@@ -976,13 +850,12 @@ function AdminPage() {
         }
 
         const cmsIndex =
-          registry.findIndex(
-            (guide) =>
-              guide?.cmsGuideId ===
-              currentGuide.cmsGuideId
-          )
+          selectedGuide -
+          originalGuideCount
 
-        if (cmsIndex >= 0) {
+        if (
+          registry[cmsIndex]
+        ) {
           registry[cmsIndex] =
             updatedGuide
         }
@@ -1175,13 +1048,10 @@ function AdminPage() {
       }
 
       const cmsIndex =
-        registry.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            updatedGuide?.cmsGuideId
-        )
+        selectedGuide -
+        originalGuideCount
 
-      if (cmsIndex >= 0) {
+      if (registry[cmsIndex]) {
         registry[cmsIndex] =
           updatedGuide
       }
@@ -2120,20 +1990,6 @@ function AdminPage() {
               </div>
 
               <div className="admin-actions">
-
-                {isEditingCMSGuide && (
-                  <button
-                    type="button"
-                    onClick={deleteCMSGuide}
-                    className="admin-danger-button"
-                    disabled={saving}
-                  >
-                    {saving
-                      ? 'Deleting...'
-                      : 'Delete Guide'}
-                  </button>
-                )}
-
                 <button
                   type="button"
                   onClick={

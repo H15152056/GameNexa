@@ -7,6 +7,7 @@ import GamePage from './pages/GamePage'
 import GuidePage from './pages/GuidePage'
 import GuidesPage from './pages/GuidesPage'
 import NotFoundPage from './pages/NotFoundPage'
+import AdminPage from './pages/AdminPage'
 
 import './index.css'
 
@@ -33,6 +34,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route
           path="/guides"
           element={<GuidesPage />}
+        />
+
+        <Route
+          path="/admin"
+          element={<AdminPage />}
         />
 
         <Route

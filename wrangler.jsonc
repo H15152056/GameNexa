@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gamenexa",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-05",
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/admin",
+      "/admin/*"
+    ]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gamenexa-cms",
+      "database_id": "450497b9-4b71-412d-8b05-85118ad18827"
+    }
+  ]
+}

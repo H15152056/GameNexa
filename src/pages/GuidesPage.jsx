@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
 import { gamesData } from '../data/gamesData'
+import { useCMSGamesData } from '../cms/cmsContent'
 import './GuidesPage.css'
 import { SEO } from '../SEO'
 import { SITE_NAME } from '../seoConfig'
 
 function GuidesPage() {
-  const games = Object.values(gamesData)
+  const cmsGamesData = useCMSGamesData(gamesData)
+
+  const games = Object.values(cmsGamesData)
 
   const totalGuides = games.reduce(
     (total, game) => total + (game.guides?.length || 0),
@@ -26,7 +29,6 @@ function GuidesPage() {
 
   return (
     <div className="guides-page">
-
       <SEO
         title={pageTitle}
         description={pageDescription}
@@ -36,7 +38,6 @@ function GuidesPage() {
       />
 
       {/* NAVBAR */}
-
       <nav className="guides-navbar">
         <Link to="/" className="guides-logo">
           <span className="guides-logo-mark">G</span>
@@ -51,7 +52,6 @@ function GuidesPage() {
       </nav>
 
       {/* HERO */}
-
       <header className="guides-hero">
         <div className="guides-hero-content">
           <span>KNOWLEDGE BASE</span>
@@ -67,7 +67,6 @@ function GuidesPage() {
       </header>
 
       {/* GUIDES BY GAME */}
-
       <main className="guides-container">
         {games.map((game) => {
           const guides = game.guides || []
@@ -124,7 +123,6 @@ function GuidesPage() {
       </main>
 
       {/* FOOTER */}
-
       <footer className="guides-footer">
         <div className="guides-footer-logo">
           Game<span>Nexa</span>
@@ -134,7 +132,6 @@ function GuidesPage() {
 
         <small>© 2026 GameNexa. All rights reserved.</small>
       </footer>
-
     </div>
   )
 }

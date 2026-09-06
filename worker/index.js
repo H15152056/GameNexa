@@ -176,7 +176,7 @@ export default {
         const session = `${expires}.${signature}`
 
         return new Response(
-          JSON.stringify({ success: true }),
+          JSON.stringify({ success: true, authenticated: true }),
           {
             status: 200,
             headers: {
@@ -336,7 +336,19 @@ export default {
 
     // ==========================================
     // SERVE REACT WEBSITE
-    // ==========================================
+
+    // React BrowserRouter needs index.html for direct /admin requests.
+    if (
+      url.pathname === '/admin' ||
+      url.pathname.startsWith('/admin/')
+    ) {
+      const appRequest = new Request(
+        new URL('/', request.url),
+        request
+      )
+
+      return env.ASSETS.fetch(appRequest)
+    }
 
     return env.ASSETS.fetch(request)
   },

@@ -1,13 +1,61 @@
 import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import './GuidePage.css'
 import { gamesData } from '../data/gamesData'
+import {
+  fetchCMSContent,
+  applyCMSOverrides,
+} from '../cms/cmsContent'
 import { SEO } from '../SEO'
 import { SITE_NAME } from '../seoConfig'
 
 function GuidePage() {
   const { slug, index } = useParams()
 
-  const games = Object.values(gamesData)
+  const [contentMap, setContentMap] = useState({})
+  const [cmsLoaded, setCmsLoaded] = useState(false)
+
+  /*
+   * Load CMS/D1 content directly.
+   * This makes newly added sections and paragraphs
+   * available on the public guide page.
+   */
+  useEffect(() => {
+    let active = true
+
+    async function loadCMS() {
+      try {
+        const data = await fetchCMSContent()
+
+        if (active) {
+          setContentMap(data)
+        }
+      } catch {
+        if (active) {
+          setContentMap({})
+        }
+      } finally {
+        if (active) {
+          setCmsLoaded(true)
+        }
+      }
+    }
+
+    loadCMS()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const cmsGamesData = useMemo(() => {
+    return applyCMSOverrides(
+      gamesData,
+      contentMap
+    )
+  }, [contentMap])
+
+  const games = Object.values(cmsGamesData)
 
   const game = games.find(function (item) {
     return item.slug === slug
@@ -191,7 +239,9 @@ function GuidePage() {
 
             <p>
               This GameNexa guide covers{' '}
-              <strong>{guide.title.toLowerCase()}</strong>{' '}
+              <strong>
+                {guide.title.toLowerCase()}
+              </strong>{' '}
               in {game.name}. Use the information below to
               improve your gameplay and get more from your
               gaming experience.
@@ -202,7 +252,8 @@ function GuidePage() {
 
           {/* REAL GUIDE CONTENT */}
 
-          {guide.content && guide.content.length > 0 ? (
+          {guide.content &&
+          guide.content.length > 0 ? (
 
             guide.content.map(function (
               section,
@@ -210,34 +261,36 @@ function GuidePage() {
             ) {
 
               return (
-
                 <section
                   className="guide-section"
-                  key={sectionIndex}
+                  key={`section-${sectionIndex}`}
                 >
 
                   <h2>
                     {section.heading}
                   </h2>
 
-                  {section.paragraphs &&
-                    section.paragraphs.map(function (
-                      paragraph,
-                      paragraphIndex
-                    ) {
+                  {Array.isArray(
+                    section.paragraphs
+                  ) &&
+                    section.paragraphs.map(
+                      function (
+                        paragraph,
+                        paragraphIndex
+                      ) {
 
-                      return (
-                        <p
-                          key={paragraphIndex}
-                        >
-                          {paragraph}
-                        </p>
-                      )
+                        return (
+                          <p
+                            key={`paragraph-${sectionIndex}-${paragraphIndex}`}
+                          >
+                            {paragraph}
+                          </p>
+                        )
 
-                    })}
+                      }
+                    )}
 
                 </section>
-
               )
 
             })
@@ -303,7 +356,6 @@ function GuidePage() {
                 </p>
 
               </section>
-
             </>
 
           )}
@@ -394,7 +446,6 @@ function GuidePage() {
               }
 
               return (
-
                 <Link
                   key={itemIndex}
                   to={`/game/${game.slug}/guides/${itemIndex}`}
@@ -422,7 +473,6 @@ function GuidePage() {
                   </div>
 
                 </Link>
-
               )
 
             })}
