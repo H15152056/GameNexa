@@ -8,6 +8,7 @@ import GuidePage from './pages/GuidePage'
 import GuidesPage from './pages/GuidesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import AdminPage from './pages/AdminPage'
+import LegalPage from './pages/LegalPage'
 
 import './index.css'
 
@@ -39,6 +40,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route
           path="/admin"
           element={<AdminPage />}
+        />
+
+        <Route
+          path="/legal"
+          element={<LegalPage />}
         />
 
         <Route
