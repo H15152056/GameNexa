@@ -12,9 +12,7 @@ import {
 /*
  * NOTE: SITE_URL / SITE_NAME / DEFAULT_TITLE / DEFAULT_DESCRIPTION are
  * imported from src/seoConfig.js so the build-time pre-rendered SEO
- * (this script) and the runtime SEO (src/SEO.jsx) can never drift out
- * of sync. When the site moves to a custom domain, update SITE_URL in
- * src/seoConfig.js only — this script will pick it up automatically.
+ * and runtime SEO stay synchronized.
  */
 
 const __filename = fileURLToPath(import.meta.url)
@@ -95,12 +93,6 @@ function extractString(source, key) {
 /*
  * ------------------------------------------------------------
  * BALANCED BLOCK FINDER
- *
- * Finds:
- *   news: [...]
- *   guides: [...]
- *
- * without breaking when objects contain nested objects/arrays.
  * ------------------------------------------------------------
  */
 
@@ -204,7 +196,6 @@ function extractGameEntries(source) {
   let inString = false
   let stringChar = ''
   let escaped = false
-
   let keyStart = -1
 
   for (
@@ -241,14 +232,6 @@ function extractGameEntries(source) {
       stringChar = char
       continue
     }
-
-    /*
-     * At depth 0 we are looking for:
-     *
-     * genshin: {
-     * whiteout: {
-     *
-     */
 
     if (depth === 0) {
       if (/[A-Za-z0-9_$]/.test(char)) {
@@ -369,7 +352,6 @@ function extractObjectsFromArray(arraySource) {
 
   let depth = 0
   let objectStart = -1
-
   let inString = false
   let stringChar = ''
   let escaped = false
@@ -662,7 +644,7 @@ function createRoutes(games) {
       path: '/',
       title: DEFAULT_TITLE,
       description: DEFAULT_DESCRIPTION,
-      image: '',
+      image: '/og-default.png',
     },
   ]
 
@@ -671,21 +653,12 @@ function createRoutes(games) {
       continue
     }
 
-    /*
-     * GAME PAGE
-     */
-
     routes.push({
       path: `/game/${game.slug}`,
       title: `${game.name} - GameNexa`,
-      description:
-        game.description,
+      description: game.description,
       image: game.image,
     })
-
-    /*
-     * NEWS
-     */
 
     for (const article of game.news || []) {
       routes.push({
@@ -693,17 +666,12 @@ function createRoutes(games) {
           `/game/${game.slug}/news/${article.slug}`,
         title:
           `${article.title} - ${game.name} - GameNexa`,
-        description:
-          article.description,
+        description: article.description,
         image:
           article.image ||
           game.image,
       })
     }
-
-    /*
-     * GUIDES
-     */
 
     for (const guide of game.guides || []) {
       routes.push({
@@ -711,8 +679,7 @@ function createRoutes(games) {
           `/game/${game.slug}/guides/${guide.slug}`,
         title:
           `${guide.title} - ${game.name} - GameNexa`,
-        description:
-          guide.description,
+        description: guide.description,
         image:
           guide.image ||
           game.image,
@@ -810,6 +777,11 @@ function findBuiltAsset(image) {
 /*
  * ------------------------------------------------------------
  * HTML SEO
+ *
+ * IMPORTANT:
+ * The source index.html contains fallback SEO tags.
+ * We remove all route-specific OG/Twitter/canonical tags first,
+ * then insert exactly one clean set for the current route.
  * ------------------------------------------------------------
  */
 
@@ -837,63 +809,132 @@ function renderHtml(
 
   let html = template
 
-  html =
-    html.replace(
-      /<title>[\s\S]*?<\/title>/i,
-      `<title>${escapeHtml(title)}</title>`,
-    )
+  /*
+   * Remove existing canonical tag.
+   */
+  html = html.replace(
+    /<link\s+rel=["']canonical["'][^>]*>\s*/gi,
+    '',
+  )
 
-  html =
-    html.replace(
-      /<meta\s+name=["']description["'][^>]*>/i,
-      `<meta name="description" content="${escapeHtml(description)}">`,
-    )
+  /*
+   * Remove existing Open Graph tags.
+   */
+  html = html.replace(
+    /<meta\s+property=["']og:[^"']+["'][^>]*>\s*/gi,
+    '',
+  )
 
-  if (
-    /<link\s+rel=["']canonical["'][^>]*>/i.test(
-      html,
-    )
-  ) {
-    html =
-      html.replace(
-        /<link\s+rel=["']canonical["'][^>]*>/i,
-        `<link rel="canonical" href="${escapeHtml(canonical)}">`,
-      )
-  } else {
-    html =
-      html.replace(
-        /<\/head>/i,
-        `<link rel="canonical" href="${escapeHtml(canonical)}">\n</head>`,
-      )
-  }
+  /*
+   * Remove existing Twitter tags.
+   */
+  html = html.replace(
+    /<meta\s+name=["']twitter:[^"']+["'][^>]*>\s*/gi,
+    '',
+  )
 
-  const meta = `
-    <meta property="og:title" content="${escapeHtml(title)}">
-    <meta property="og:description" content="${escapeHtml(description)}">
-    <meta property="og:url" content="${escapeHtml(canonical)}">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">
+  /*
+   * Remove existing title and replace it.
+   */
+  html = html.replace(
+    /<title>[\s\S]*?<\/title>/i,
+    `<title>${escapeHtml(title)}</title>`,
+  )
+
+  /*
+   * Replace description.
+   */
+  html = html.replace(
+    /<meta\s+name=["']description["'][^>]*>/i,
+    `<meta name="description" content="${escapeHtml(description)}">`,
+  )
+
+  /*
+   * Canonical.
+   */
+  const canonicalTag = `
+    <link
+      rel="canonical"
+      href="${escapeHtml(canonical)}"
+    />
+  `
+
+  /*
+   * Open Graph.
+   */
+  const openGraphTags = `
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="${escapeHtml(SITE_NAME)}" />
+    <meta
+      property="og:title"
+      content="${escapeHtml(title)}"
+    />
+    <meta
+      property="og:description"
+      content="${escapeHtml(description)}"
+    />
+    <meta
+      property="og:url"
+      content="${escapeHtml(canonical)}"
+    />
     ${
       image
-        ? `<meta property="og:image" content="${escapeHtml(image)}">`
-        : ''
-    }
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="${escapeHtml(title)}">
-    <meta name="twitter:description" content="${escapeHtml(description)}">
-    ${
-      image
-        ? `<meta name="twitter:image" content="${escapeHtml(image)}">`
+        ? `
+    <meta
+      property="og:image"
+      content="${escapeHtml(image)}"
+    />
+    <meta
+      property="og:image:alt"
+      content="${escapeHtml(title)}"
+    />`
         : ''
     }
   `
 
-  html =
-    html.replace(
-      /<\/head>/i,
-      `${meta}\n</head>`,
-    )
+  /*
+   * Twitter.
+   */
+  const twitterTags = `
+    <!-- Twitter -->
+    <meta
+      name="twitter:card"
+      content="summary_large_image"
+    />
+    <meta
+      name="twitter:site"
+      content="@gamenexa"
+    />
+    <meta
+      name="twitter:title"
+      content="${escapeHtml(title)}"
+    />
+    <meta
+      name="twitter:description"
+      content="${escapeHtml(description)}"
+    />
+    ${
+      image
+        ? `
+    <meta
+      name="twitter:image"
+      content="${escapeHtml(image)}"
+    />`
+        : ''
+    }
+  `
+
+  /*
+   * Insert the clean SEO set exactly once.
+   */
+  html = html.replace(
+    /<\/head>/i,
+    `${canonicalTag}
+${openGraphTags}
+${twitterTags}
+</head>`,
+  )
 
   return html
 }
@@ -1018,7 +1059,7 @@ function main() {
     )
 
   /*
-   * Remove duplicate URLs
+   * Remove duplicate URLs.
    */
 
   const uniqueRoutes = []
@@ -1045,7 +1086,7 @@ function main() {
   }
 
   /*
-   * Generate HTML for every route
+   * Generate HTML for every route.
    */
 
   for (const route of uniqueRoutes) {
@@ -1056,7 +1097,7 @@ function main() {
   }
 
   /*
-   * Generate sitemap
+   * Generate sitemap.
    */
 
   const sitemap =
