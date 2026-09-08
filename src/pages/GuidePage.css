@@ -616,3 +616,24 @@
 .news-content {
   border-radius: 0 !important;
 }
+/* =========================================================
+   GUIDE VIDEO EMBEDS (YouTube / Vimeo)
+   ========================================================= */
+
+.guide-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 16px 0 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.guide-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}

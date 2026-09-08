@@ -2,21 +2,27 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import {
+  SITE_URL,
+  SITE_NAME,
+  DEFAULT_TITLE,
+  DEFAULT_DESCRIPTION,
+} from '../src/seoConfig.js'
+
+/*
+ * NOTE: SITE_URL / SITE_NAME / DEFAULT_TITLE / DEFAULT_DESCRIPTION are
+ * imported from src/seoConfig.js so the build-time pre-rendered SEO
+ * (this script) and the runtime SEO (src/SEO.jsx) can never drift out
+ * of sync. When the site moves to a custom domain, update SITE_URL in
+ * src/seoConfig.js only — this script will pick it up automatically.
+ */
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const ROOT = path.resolve(__dirname, '..')
 const DIST_DIR = path.join(ROOT, 'dist')
 const SOURCE_FILE = path.join(ROOT, 'src', 'data', 'gamesData.js')
-
-const SITE_URL = 'https://gamenexa.com'
-const SITE_NAME = 'GameNexa'
-
-const DEFAULT_TITLE =
-  'GameNexa - Latest Game Updates, Characters & Guides'
-
-const DEFAULT_DESCRIPTION =
-  'GameNexa brings the latest gaming news, characters, events, banners, guides and updates.'
 
 function escapeXml(value = '') {
   return String(value)

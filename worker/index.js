@@ -1,14 +1,39 @@
 const COOKIE_NAME = 'gamenexa_admin'
 const SESSION_TTL = 86400 // 24 hours
 
+// Guardrails for CMS content payloads so a bad request (or a bug in the
+// admin UI) can't write unbounded rows into D1.
+const MAX_CONTENT_KEY_LENGTH = 200
+const MAX_CONTENT_VALUE_LENGTH = 200000 // ~200 KB per content_value
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
     },
   })
+}
+
+// Constant-time-ish string comparison to reduce (low-risk but free to
+// close) timing side-channels on the admin password check.
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') {
+    return false
+  }
+
+  if (a.length !== b.length) {
+    return false
+  }
+
+  let mismatch = 0
+
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+
+  return mismatch === 0
 }
 
 function base64Url(bytes) {
@@ -157,7 +182,7 @@ export default {
         if (
           !body.password ||
           !env.ADMIN_PASSWORD ||
-          body.password !== env.ADMIN_PASSWORD
+          !safeEqual(body.password, env.ADMIN_PASSWORD)
         ) {
           return json(
             { error: 'Invalid password' },
@@ -180,7 +205,7 @@ export default {
           {
             status: 200,
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type': 'application/json; charset=utf-8',
               'Cache-Control': 'no-store',
               'Set-Cookie': adminCookie(session),
             },
@@ -207,7 +232,7 @@ export default {
         {
           status: 200,
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
             'Set-Cookie': adminCookie('', 0),
           },
@@ -250,10 +275,25 @@ export default {
 
         if (
           !body.key ||
+          typeof body.key !== 'string' ||
           typeof body.value !== 'string'
         ) {
           return json(
             { error: 'Invalid content data' },
+            400
+          )
+        }
+
+        if (body.key.length > MAX_CONTENT_KEY_LENGTH) {
+          return json(
+            { error: 'Content key is too long' },
+            400
+          )
+        }
+
+        if (body.value.length > MAX_CONTENT_VALUE_LENGTH) {
+          return json(
+            { error: 'Content value is too large' },
             400
           )
         }

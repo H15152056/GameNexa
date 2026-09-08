@@ -8,7 +8,12 @@ import GuidePage from './pages/GuidePage'
 import GuidesPage from './pages/GuidesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import AdminPage from './pages/AdminPage'
-import LegalPage from './pages/LegalPage'
+import AboutPage from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import TermsOfUsePage from './pages/TermsOfUsePage'
+import DisclaimerPage from './pages/DisclaimerPage'
+import DmcaPage from './pages/DmcaPage'
 
 import './index.css'
 
@@ -43,8 +48,33 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         />
 
         <Route
-          path="/legal"
-          element={<LegalPage />}
+          path="/about"
+          element={<AboutPage />}
+        />
+
+        <Route
+          path="/contact"
+          element={<ContactPage />}
+        />
+
+        <Route
+          path="/privacy-policy"
+          element={<PrivacyPolicyPage />}
+        />
+
+        <Route
+          path="/terms-of-use"
+          element={<TermsOfUsePage />}
+        />
+
+        <Route
+          path="/disclaimer"
+          element={<DisclaimerPage />}
+        />
+
+        <Route
+          path="/dmca"
+          element={<DmcaPage />}
         />
 
         <Route

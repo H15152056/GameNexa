@@ -375,3 +375,26 @@
     padding: 17px;
   }
 }
+/* =========================================================
+   VIDEO PARAGRAPH SUPPORT
+   ========================================================= */
+
+.admin-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-video-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-video-hint-ok {
+  color: #28ff83;
+}
+
+.admin-video-hint-warn {
+  color: #ffb020;
+}

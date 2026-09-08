@@ -15,6 +15,12 @@ import {
   cmsTitleKey,
   fetchCMSContent,
 } from '../cms/cmsContent'
+import {
+  VIDEO_PREFIX,
+  isVideoParagraph,
+  getVideoUrlFromParagraph,
+  toEmbedUrl,
+} from '../utils/videoEmbed'
 
 const EMPTY_GUIDE = {
   icon: '📖',
@@ -517,6 +523,26 @@ function AdminPage() {
     }))
   }
 
+  function addNewVideo(
+    sectionIndex
+  ) {
+    setNewGuide((previous) => ({
+      ...previous,
+      content: previous.content.map(
+        (section, index) =>
+          index === sectionIndex
+            ? {
+                ...section,
+                paragraphs: [
+                  ...(section.paragraphs || []),
+                  `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
+                ],
+              }
+            : section
+      ),
+    }))
+  }
+
   function deleteNewParagraph(
     sectionIndex,
     paragraphIndex
@@ -788,6 +814,35 @@ function AdminPage() {
                     ...(section.paragraphs ||
                       []),
                     'Write your paragraph here.',
+                  ],
+                }
+              : section
+        ),
+      }
+    })
+  }
+
+  function addEditorVideo(
+    sectionIndex
+  ) {
+    setEditorDraft((previous) => {
+      if (!previous) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        content: (
+          previous.content || []
+        ).map(
+          (section, index) =>
+            index === sectionIndex
+              ? {
+                  ...section,
+                  paragraphs: [
+                    ...(section.paragraphs ||
+                      []),
+                    `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
                   ],
                 }
               : section
@@ -1772,9 +1827,11 @@ function AdminPage() {
                             <div className="admin-field">
 
                               <label>
-                                Paragraph{' '}
-                                {paragraphIndex +
-                                  1}
+                                {isVideoParagraph(
+                                  paragraph
+                                )
+                                  ? '🎥 Video (paste YouTube or Vimeo link after [video])'
+                                  : `Paragraph ${paragraphIndex + 1}`}
                               </label>
 
                               <textarea
@@ -1791,8 +1848,31 @@ function AdminPage() {
                                       .value
                                   )
                                 }
-                                rows={5}
+                                rows={
+                                  isVideoParagraph(
+                                    paragraph
+                                  )
+                                    ? 2
+                                    : 5
+                                }
                               />
+
+                              {isVideoParagraph(
+                                paragraph
+                              ) &&
+                                (toEmbedUrl(
+                                  getVideoUrlFromParagraph(
+                                    paragraph
+                                  )
+                                ) ? (
+                                  <p className="admin-video-hint admin-video-hint-ok">
+                                    ✅ Valid video link — it will show as an embedded player on the guide page.
+                                  </p>
+                                ) : (
+                                  <p className="admin-video-hint admin-video-hint-warn">
+                                    ⚠️ Paste a full YouTube or Vimeo URL after {VIDEO_PREFIX} (e.g. https://www.youtube.com/watch?v=VIDEO_ID).
+                                  </p>
+                                ))}
 
                             </div>
 
@@ -1806,24 +1886,42 @@ function AdminPage() {
                               }
                               className="admin-danger-button"
                             >
-                              Delete Paragraph
+                              {isVideoParagraph(
+                                paragraph
+                              )
+                                ? 'Delete Video'
+                                : 'Delete Paragraph'}
                             </button>
 
                           </div>
                         )
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          addNewParagraph(
-                            sectionIndex
-                          )
-                        }
-                        className="admin-secondary-button"
-                      >
-                        + Add Paragraph
-                      </button>
+                      <div className="admin-inline-actions">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addNewParagraph(
+                              sectionIndex
+                            )
+                          }
+                          className="admin-secondary-button"
+                        >
+                          + Add Paragraph
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addNewVideo(
+                              sectionIndex
+                            )
+                          }
+                          className="admin-secondary-button"
+                        >
+                          🎥 + Add Video
+                        </button>
+                      </div>
 
                     </div>
                   )
@@ -2033,9 +2131,11 @@ function AdminPage() {
                             <div className="admin-field">
 
                               <label>
-                                Paragraph{' '}
-                                {paragraphIndex +
-                                  1}
+                                {isVideoParagraph(
+                                  paragraph
+                                )
+                                  ? '🎥 Video (paste YouTube or Vimeo link after [video])'
+                                  : `Paragraph ${paragraphIndex + 1}`}
                               </label>
 
                               <textarea
@@ -2053,8 +2153,31 @@ function AdminPage() {
                                       .value
                                   )
                                 }
-                                rows={5}
+                                rows={
+                                  isVideoParagraph(
+                                    paragraph
+                                  )
+                                    ? 2
+                                    : 5
+                                }
                               />
+
+                              {isVideoParagraph(
+                                paragraph
+                              ) &&
+                                (toEmbedUrl(
+                                  getVideoUrlFromParagraph(
+                                    paragraph
+                                  )
+                                ) ? (
+                                  <p className="admin-video-hint admin-video-hint-ok">
+                                    ✅ Valid video link — it will show as an embedded player on the guide page.
+                                  </p>
+                                ) : (
+                                  <p className="admin-video-hint admin-video-hint-warn">
+                                    ⚠️ Paste a full YouTube or Vimeo URL after {VIDEO_PREFIX} (e.g. https://www.youtube.com/watch?v=VIDEO_ID).
+                                  </p>
+                                ))}
 
                             </div>
 
@@ -2068,24 +2191,42 @@ function AdminPage() {
                               }
                               className="admin-danger-button"
                             >
-                              Delete Paragraph
+                              {isVideoParagraph(
+                                paragraph
+                              )
+                                ? 'Delete Video'
+                                : 'Delete Paragraph'}
                             </button>
 
                           </div>
                         )
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          addEditorParagraph(
-                            sectionIndex
-                          )
-                        }
-                        className="admin-secondary-button"
-                      >
-                        + Add Paragraph
-                      </button>
+                      <div className="admin-inline-actions">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addEditorParagraph(
+                              sectionIndex
+                            )
+                          }
+                          className="admin-secondary-button"
+                        >
+                          + Add Paragraph
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addEditorVideo(
+                              sectionIndex
+                            )
+                          }
+                          className="admin-secondary-button"
+                        >
+                          🎥 + Add Video
+                        </button>
+                      </div>
 
                     </div>
                   )

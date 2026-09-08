@@ -1851,6 +1851,7 @@ function GamePage() {
                                   skill.name ||
                                   'Skill'
                                 }
+                                loading="lazy"
                               />
                             )}
 
@@ -1939,6 +1940,7 @@ function GamePage() {
                                   skill.name ||
                                   'Skill'
                                 }
+                                loading="lazy"
                               />
                             )}
 
@@ -2007,6 +2009,7 @@ function GamePage() {
                                   skill.name ||
                                   'Weapon skill'
                                 }
+                                loading="lazy"
                               />
                             )}
 

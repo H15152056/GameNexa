@@ -8,6 +8,11 @@ import {
 } from '../cms/cmsContent'
 import { SEO } from '../SEO'
 import { SITE_NAME } from '../seoConfig'
+import {
+  isVideoParagraph,
+  getVideoUrlFromParagraph,
+  toEmbedUrl,
+} from '../utils/videoEmbed'
 
 function GuidePage() {
   const { slug, index } = useParams()
@@ -278,6 +283,56 @@ function GuidePage() {
                         paragraph,
                         paragraphIndex
                       ) {
+
+                        if (
+                          isVideoParagraph(
+                            paragraph
+                          )
+                        ) {
+                          const embedUrl =
+                            toEmbedUrl(
+                              getVideoUrlFromParagraph(
+                                paragraph
+                              )
+                            )
+
+                          if (!embedUrl) {
+                            // Unrecognized link - show it as a
+                            // plain link instead of a broken embed.
+                            return (
+                              <p
+                                key={`paragraph-${sectionIndex}-${paragraphIndex}`}
+                              >
+                                <a
+                                  href={getVideoUrlFromParagraph(
+                                    paragraph
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {getVideoUrlFromParagraph(
+                                    paragraph
+                                  )}
+                                </a>
+                              </p>
+                            )
+                          }
+
+                          return (
+                            <div
+                              className="guide-video"
+                              key={`paragraph-${sectionIndex}-${paragraphIndex}`}
+                            >
+                              <iframe
+                                src={embedUrl}
+                                title={`${section.heading || 'Guide'} video`}
+                                loading="lazy"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                              />
+                            </div>
+                          )
+                        }
 
                         return (
                           <p
