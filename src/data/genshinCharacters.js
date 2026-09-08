@@ -14,6 +14,9 @@ const genshinImages = import.meta.glob(
  *
  * src/assets/genshin/
  *
+ * WebP images are preferred when available.
+ * Original PNG/JPG images remain as fallback.
+ *
  * Special filenames are mapped below because their filenames
  * are different from the character's display name.
  * ============================================================
@@ -39,29 +42,73 @@ const imageMap = {
 /*
  * Find a local image safely.
  *
- * The first check uses the exact Vite glob path.
- * The second check compares filenames case-insensitively.
- * This makes the image system much more reliable.
+ * For PNG-based images:
+ *   1. WebP
+ *   2. WEBP
+ *   3. Original PNG
+ *
+ * For other image types:
+ *   1. Original image
+ *   2. WebP
+ *   3. WEBP
+ *   4. PNG fallback
+ *
+ * The exact Vite glob path is checked first.
+ * A case-insensitive fallback is used afterwards.
  */
 const getGenshinImage = (name) => {
   if (!name) return ''
 
-  const fileName = imageMap[name] || `${name}.png`
-  const expectedPath = `../assets/genshin/${fileName}`
+  const mappedFileName = imageMap[name]
+  const originalFileName = mappedFileName || `${name}.png`
+
+  const extensionIndex = originalFileName.lastIndexOf('.')
+
+  const extension =
+    extensionIndex >= 0
+      ? originalFileName.substring(extensionIndex)
+      : '.png'
+
+  const baseName =
+    extensionIndex >= 0
+      ? originalFileName.substring(0, extensionIndex)
+      : originalFileName
+
+  const possibleNames =
+    extension.toLowerCase() === '.png'
+      ? [
+          `${baseName}.webp`,
+          `${baseName}.WEBP`,
+          originalFileName,
+        ]
+      : [
+          originalFileName,
+          `${baseName}.webp`,
+          `${baseName}.WEBP`,
+          `${baseName}.png`,
+        ]
 
   // Exact Vite path match
-  if (genshinImages[expectedPath]) {
-    return genshinImages[expectedPath]
+  for (const fileName of possibleNames) {
+    const expectedPath = `../assets/genshin/${fileName}`
+
+    if (genshinImages[expectedPath]) {
+      return genshinImages[expectedPath]
+    }
   }
 
   // Case-insensitive fallback
-  const matchedEntry = Object.entries(genshinImages).find(([path]) => {
-    const actualFileName = path.split('/').pop()
+  const matchedEntry = Object.entries(genshinImages).find(
+    ([path]) => {
+      const actualFileName = path.split('/').pop()
 
-    return (
-      actualFileName?.toLowerCase() === fileName.toLowerCase()
-    )
-  })
+      return possibleNames.some(
+        (fileName) =>
+          actualFileName?.toLowerCase() ===
+          fileName.toLowerCase()
+      )
+    }
+  )
 
   return matchedEntry ? matchedEntry[1] : ''
 }
