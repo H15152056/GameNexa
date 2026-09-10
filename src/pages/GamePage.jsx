@@ -12,6 +12,8 @@ import WhiteoutHub from '../games/whiteout/WhiteoutHub'
 import './GamePage.css'
 import { SEO } from '../SEO'
 
+const DOT = String.fromCodePoint(0x00b7)
+
 function slugify(value = '') {
   return String(value)
     .toLowerCase()
@@ -22,33 +24,54 @@ function slugify(value = '') {
 }
 
 function normalizeCharacterCollection(value) {
-  if (Array.isArray(value)) return value
+  let current = value
 
-  if (!value || typeof value !== 'object') return []
+  if (
+    current &&
+    typeof current === 'object' &&
+    current.default &&
+    !Array.isArray(current)
+  ) {
+    current = current.default
+  }
+
+  if (Array.isArray(current)) {
+    return current
+  }
+
+  if (!current || typeof current !== 'object') {
+    return []
+  }
 
   const candidates = [
-    value.characters,
-    value.genshinCharacters,
-    value.heroes,
-    value.data,
-    value.items,
-    value.list,
-    value.default,
+    current.characters,
+    current.genshinCharacters,
+    current.heroes,
+    current.data,
+    current.items,
+    current.list,
+    current.roster,
+    current.results,
+    current.entries,
   ]
 
   for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate
+    if (Array.isArray(candidate)) {
+      return candidate
+    }
   }
 
-  const objectValues = Object.values(value)
+  const objectValues = Object.values(current)
 
-  if (
-    objectValues.length > 0 &&
-    objectValues.every(
-      (item) => item && typeof item === 'object'
-    )
-  ) {
-    return objectValues
+  const objectEntries = objectValues.filter(
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      !Array.isArray(item)
+  )
+
+  if (objectEntries.length > 0) {
+    return objectEntries
   }
 
   return []
@@ -60,27 +83,33 @@ function getCharacterName(character) {
     character?.title ||
     character?.heroName ||
     character?.characterName ||
-    'Unknown Hero'
+    character?.displayName ||
+    'Unknown Character'
   )
 }
 
 function getCharacterImage(character) {
   return (
     character?.image ||
+    character?.characterImage ||
+    character?.cardImage ||
+    character?.splash ||
     character?.icon ||
     character?.portrait ||
     character?.img ||
     character?.avatar ||
+    character?.src ||
+    character?.url ||
     ''
   )
 }
 
 function getCharacterRarity(character) {
   return (
-    character?.rarity ||
-    character?.quality ||
-    character?.tier ||
-    character?.rank ||
+    character?.rarity ??
+    character?.quality ??
+    character?.tier ??
+    character?.rank ??
     ''
   )
 }
@@ -96,12 +125,40 @@ function getCharacterType(character) {
   )
 }
 
+function getCharacterElement(character) {
+  return (
+    character?.element ||
+    character?.elements ||
+    ''
+  )
+}
+
+function getCharacterWeapon(character) {
+  const weapon = character?.weapon || character?.weaponType || ''
+
+  if (typeof weapon === 'object') {
+    return weapon?.name || ''
+  }
+
+  return weapon
+}
+
 function getCharacterGeneration(character) {
   return (
     character?.generation ??
     character?.gen ??
     character?.generationNumber ??
     ''
+  )
+}
+
+function getCharacterId(character, index = 0) {
+  return (
+    character?.id ||
+    character?.slug ||
+    character?.characterSlug ||
+    character?.heroSlug ||
+    `${slugify(getCharacterName(character))}-${index}`
   )
 }
 
@@ -137,35 +194,47 @@ function GamePage() {
     }
 
     const requestedSlug = slugify(decodedSlug)
-    const compactRequestedSlug = requestedSlug.replace(/-/g, '')
+    const compactRequestedSlug =
+      requestedSlug.replace(/-/g, '')
 
     const matches = (key, item) => {
-      if (key && slugify(key) === requestedSlug) return true
+      if (key && slugify(key) === requestedSlug) {
+        return true
+      }
 
       if (
         key &&
-        slugify(key).replace(/-/g, '') === compactRequestedSlug
+        slugify(key).replace(/-/g, '') ===
+          compactRequestedSlug
       ) {
         return true
       }
 
-      if (!item || typeof item !== 'object') return false
+      if (!item || typeof item !== 'object') {
+        return false
+      }
 
       const itemSlug = slugify(item.slug || '')
       const itemName = slugify(item.name || '')
 
-      if (itemSlug === requestedSlug) return true
+      if (itemSlug === requestedSlug) {
+        return true
+      }
 
       if (
-        itemSlug.replace(/-/g, '') === compactRequestedSlug
+        itemSlug.replace(/-/g, '') ===
+        compactRequestedSlug
       ) {
         return true
       }
 
-      if (itemName === requestedSlug) return true
+      if (itemName === requestedSlug) {
+        return true
+      }
 
       if (
-        itemName.replace(/-/g, '') === compactRequestedSlug
+        itemName.replace(/-/g, '') ===
+        compactRequestedSlug
       ) {
         return true
       }
@@ -201,11 +270,15 @@ function GamePage() {
 
   const databaseCharacters = useMemo(() => {
     if (isGenshin) {
-      return normalizeCharacterCollection(genshinCharacters)
+      return normalizeCharacterCollection(
+        genshinCharacters
+      )
     }
 
     if (isWhiteout) {
-      return normalizeCharacterCollection(whiteoutHeroes)
+      return normalizeCharacterCollection(
+        whiteoutHeroes
+      )
     }
 
     if (game?.slug) {
@@ -217,7 +290,8 @@ function GamePage() {
     return []
   }, [isGenshin, isWhiteout, game])
 
-  const [cmsCharacterItems, setCmsCharacterItems] = useState([])
+  const [cmsCharacterItems, setCmsCharacterItems] =
+    useState([])
 
   useEffect(() => {
     let active = true
@@ -228,15 +302,20 @@ function GamePage() {
           cache: 'no-store',
         })
 
-        if (!response.ok) return
+        if (!response.ok) {
+          if (active) setCmsCharacterItems([])
+          return
+        }
 
         const data = await response.json()
 
         const contentMap = Object.fromEntries(
-          (Array.isArray(data) ? data : []).map((item) => [
-            item.content_key,
-            item.content_value,
-          ])
+          (Array.isArray(data) ? data : []).map(
+            (item) => [
+              item.content_key,
+              item.content_value,
+            ]
+          )
         )
 
         const collectionKey = isGenshin
@@ -286,9 +365,10 @@ function GamePage() {
   }, [isGenshin, isWhiteout])
 
   const allCharacters = useMemo(() => {
-    const staticItems = normalizeCharacterCollection(
-      databaseCharacters
-    ).filter(Boolean)
+    const staticItems =
+      normalizeCharacterCollection(
+        databaseCharacters
+      ).filter(Boolean)
 
     const cmsItems = Array.isArray(cmsCharacterItems)
       ? cmsCharacterItems.filter(Boolean)
@@ -314,31 +394,45 @@ function GamePage() {
         ''
 
       return {
-        slug: String(slug).trim().toLowerCase(),
-        name: String(name).trim().toLowerCase(),
+        slug: String(slug)
+          .trim()
+          .toLowerCase(),
+        name: String(name)
+          .trim()
+          .toLowerCase(),
       }
     }
 
-    const findExistingIndex = (items, cmsItem) => {
-      const cmsIdentity = getIdentity(cmsItem)
+    const findExistingIndex = (
+      items,
+      cmsItem
+    ) => {
+      const cmsIdentity =
+        getIdentity(cmsItem)
 
-      if (!cmsIdentity.slug && !cmsIdentity.name) {
+      if (
+        !cmsIdentity.slug &&
+        !cmsIdentity.name
+      ) {
         return -1
       }
 
       return items.findIndex((existing) => {
-        const identity = getIdentity(existing)
+        const identity =
+          getIdentity(existing)
 
         return (
           (
             cmsIdentity.slug &&
             identity.slug &&
-            cmsIdentity.slug === identity.slug
+            cmsIdentity.slug ===
+              identity.slug
           ) ||
           (
             cmsIdentity.name &&
             identity.name &&
-            cmsIdentity.name === identity.name
+            cmsIdentity.name ===
+              identity.name
           )
         )
       })
@@ -348,7 +442,10 @@ function GamePage() {
 
     cmsItems.forEach((cmsItem, index) => {
       const existingIndex =
-        findExistingIndex(merged, cmsItem)
+        findExistingIndex(
+          merged,
+          cmsItem
+        )
 
       const cmsName =
         cmsItem?.name ||
@@ -363,7 +460,7 @@ function GamePage() {
         id:
           cmsItem?.id ||
           cmsItem?.slug ||
-          `cms-${cmsName}`,
+          `cms-${slugify(cmsName)}`,
 
         slug:
           cmsItem?.slug ||
@@ -378,14 +475,20 @@ function GamePage() {
 
         characterName:
           cmsItem?.characterName ||
-          (isGenshin ? cmsName : undefined),
+          (isGenshin
+            ? cmsName
+            : undefined),
 
         heroName:
           cmsItem?.heroName ||
-          (isWhiteout ? cmsName : undefined),
+          (isWhiteout
+            ? cmsName
+            : undefined),
 
         image:
           cmsItem?.image ||
+          cmsItem?.characterImage ||
+          cmsItem?.cardImage ||
           cmsItem?.icon ||
           cmsItem?.portrait ||
           '',
@@ -436,14 +539,21 @@ function GamePage() {
     })
 
     return merged.filter(Boolean)
-  }, [databaseCharacters, cmsCharacterItems, isGenshin, isWhiteout])
+  }, [
+    databaseCharacters,
+    cmsCharacterItems,
+    isGenshin,
+    isWhiteout,
+  ])
 
   const generations = useMemo(() => {
     if (!isWhiteout) return []
 
     const values = allCharacters
       .map((character) =>
-        Number(getCharacterGeneration(character))
+        Number(
+          getCharacterGeneration(character)
+        )
       )
       .filter(
         (value) =>
@@ -462,7 +572,12 @@ function GamePage() {
       .map((character) =>
         getCharacterRarity(character)
       )
-      .filter(Boolean)
+      .filter(
+        (value) =>
+          value !== '' &&
+          value !== null &&
+          value !== undefined
+      )
 
     return [...new Set(values)]
   }, [allCharacters])
@@ -470,20 +585,25 @@ function GamePage() {
   const types = useMemo(() => {
     const values = allCharacters
       .map((character) =>
-        getCharacterType(character)
+        isGenshin
+          ? getCharacterElement(character) ||
+            getCharacterType(character)
+          : getCharacterType(character)
       )
       .filter(Boolean)
 
     return [...new Set(values)]
-  }, [allCharacters])
+  }, [allCharacters, isGenshin])
 
   const filteredCharacters = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query =
+      search.trim().toLowerCase()
 
     let result = allCharacters.filter(
       (character) => {
         const name =
-          getCharacterName(character).toLowerCase()
+          getCharacterName(character)
+            .toLowerCase()
 
         const rarity = String(
           getCharacterRarity(character)
@@ -491,6 +611,20 @@ function GamePage() {
 
         const type = String(
           getCharacterType(character)
+        ).toLowerCase()
+
+        const element = String(
+          getCharacterElement(character)
+        ).toLowerCase()
+
+        const weapon = String(
+          getCharacterWeapon(character)
+        ).toLowerCase()
+
+        const role = String(
+          character?.role ||
+          character?.class ||
+          ''
         ).toLowerCase()
 
         const generation = String(
@@ -502,7 +636,18 @@ function GamePage() {
           name.includes(query) ||
           rarity.includes(query) ||
           type.includes(query) ||
+          element.includes(query) ||
+          weapon.includes(query) ||
+          role.includes(query) ||
           generation.includes(query)
+
+        const filterType =
+          isGenshin
+            ? getCharacterElement(
+                character
+              ) ||
+              getCharacterType(character)
+            : getCharacterType(character)
 
         const matchesRarity =
           rarityFilter === 'all' ||
@@ -512,14 +657,15 @@ function GamePage() {
 
         const matchesType =
           typeFilter === 'all' ||
-          String(
-            getCharacterType(character)
-          ) === typeFilter
+          String(filterType) ===
+            typeFilter
 
         const matchesGeneration =
           generationFilter === 'all' ||
           String(
-            getCharacterGeneration(character)
+            getCharacterGeneration(
+              character
+            )
           ) === generationFilter
 
         return (
@@ -532,36 +678,44 @@ function GamePage() {
     )
 
     if (sortOrder === 'az') {
-      result = [...result].sort((a, b) =>
-        getCharacterName(a).localeCompare(
-          getCharacterName(b)
-        )
+      result = [...result].sort(
+        (a, b) =>
+          getCharacterName(a).localeCompare(
+            getCharacterName(b)
+          )
       )
     }
 
     if (sortOrder === 'za') {
-      result = [...result].sort((a, b) =>
-        getCharacterName(b).localeCompare(
-          getCharacterName(a)
-        )
+      result = [...result].sort(
+        (a, b) =>
+          getCharacterName(b).localeCompare(
+            getCharacterName(a)
+          )
       )
     }
 
     if (sortOrder === 'generation') {
-      result = [...result].sort((a, b) => {
-        const genA = Number(
-          getCharacterGeneration(a)
-        )
+      result = [...result].sort(
+        (a, b) => {
+          const genA = Number(
+            getCharacterGeneration(a)
+          )
 
-        const genB = Number(
-          getCharacterGeneration(b)
-        )
+          const genB = Number(
+            getCharacterGeneration(b)
+          )
 
-        return (
-          (Number.isFinite(genB) ? genB : -1) -
-          (Number.isFinite(genA) ? genA : -1)
-        )
-      })
+          return (
+            (Number.isFinite(genB)
+              ? genB
+              : -1) -
+            (Number.isFinite(genA)
+              ? genA
+              : -1)
+          )
+        }
+      )
     }
 
     return result
@@ -572,6 +726,7 @@ function GamePage() {
     typeFilter,
     generationFilter,
     sortOrder,
+    isGenshin,
   ])
 
   const resetFilters = () => {
@@ -606,7 +761,9 @@ function GamePage() {
 
   useEffect(() => {
     document.body.style.overflow =
-      selectedCharacter ? 'hidden' : ''
+      selectedCharacter
+        ? 'hidden'
+        : ''
 
     return () => {
       document.body.style.overflow = ''
@@ -616,9 +773,13 @@ function GamePage() {
   const selectedBuildProfile =
     selectedCharacter
       ? isGenshin
-        ? getGenshinBuildProfile(selectedCharacter)
+        ? getGenshinBuildProfile(
+            selectedCharacter
+          )
         : isWhiteout
-          ? getWhiteoutBuildProfile(selectedCharacter)
+          ? getWhiteoutBuildProfile(
+              selectedCharacter
+            )
           : null
       : null
 
@@ -627,7 +788,9 @@ function GamePage() {
       <main className="game-page">
         <div className="game-page-container">
           <section className="game-not-found">
-            <span className="not-found-icon">&#x1F3AE;</span>
+            <span className="not-found-icon">
+              &#x1F3AE;
+            </span>
 
             <h1>Game Not Found</h1>
 
@@ -648,7 +811,8 @@ function GamePage() {
     )
   }
 
-  const gameName = game.name || 'Game'
+  const gameName =
+    game.name || 'Game'
 
   const seoTitle = isWhiteout
     ? 'Whiteout Survival Heroes, Tier List, Battle Maps & Hub | GameNexa'
@@ -656,12 +820,13 @@ function GamePage() {
       ? 'Genshin Impact Characters, Builds & Guides | GameNexa'
       : `${gameName} Database & Guides | GameNexa`
 
-  const gameDescription = isWhiteout
-    ? 'Full Whiteout Survival hero database with roles and generations, plus a complete hub: battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops and calculators.'
-    : isGenshin
-      ? 'Browse every Genshin Impact character with elements, weapons, roles and build direction - artifacts, main stats, talent priority and weapon advice.'
-      : game.description ||
-        `Explore the latest ${gameName} characters, guides, builds, and database information on GameNexa.`
+  const gameDescription =
+    isWhiteout
+      ? 'Full Whiteout Survival hero database with roles and generations, plus a complete hub: battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops and calculators.'
+      : isGenshin
+        ? 'Browse every Genshin Impact character with elements, weapons, roles and build direction - artifacts, main stats, talent priority and weapon advice.'
+        : game.description ||
+          `Explore the latest ${gameName} characters, guides, builds, and database information on GameNexa.`
 
   const heroImage =
     game.heroImage ||
@@ -669,22 +834,32 @@ function GamePage() {
     game.image ||
     ''
 
-  const featured = Array.isArray(game.featured)
+  const featured = Array.isArray(
+    game.featured
+  )
     ? game.featured
     : []
 
-  const guides = Array.isArray(game.guides)
+  const guides = Array.isArray(
+    game.guides
+  )
     ? game.guides
     : []
 
-  const strategy = Array.isArray(game.strategy)
+  const strategy = Array.isArray(
+    game.strategy
+  )
     ? game.strategy
     : []
 
   const gameClass = [
     'game-page',
-    isGenshin ? 'game-theme-genshin' : '',
-    isWhiteout ? 'game-theme-whiteout' : '',
+    isGenshin
+      ? 'game-theme-genshin'
+      : '',
+    isWhiteout
+      ? 'game-theme-whiteout'
+      : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -731,12 +906,22 @@ function GamePage() {
 
             <div className="game-stats">
               <div className="game-stat">
-                <strong>{allCharacters.length}</strong>
-                <span>Characters</span>
+                <strong>
+                  {allCharacters.length}
+                </strong>
+
+                <span>
+                  {isWhiteout
+                    ? 'Heroes'
+                    : 'Characters'}
+                </span>
               </div>
 
               <div className="game-stat">
-                <strong>{guides.length}</strong>
+                <strong>
+                  {guides.length}
+                </strong>
+
                 <span>Guides</span>
               </div>
             </div>
@@ -765,9 +950,13 @@ function GamePage() {
                 <span>HEALERS</span>
 
                 <strong>
-                  {whiteoutHeroMeta.healerNames.join(
-                    ' &#x00B7; '
-                  )}
+                  {Array.isArray(
+                    whiteoutHeroMeta?.healerNames
+                  )
+                    ? whiteoutHeroMeta.healerNames.join(
+                        ` ${DOT} `
+                      )
+                    : 'Philly · Xura · Bertha'}
                 </strong>
 
                 <small>
@@ -779,7 +968,7 @@ function GamePage() {
                 <span>CORE JOINERS</span>
 
                 <strong>
-                  Jessie &#x00B7; Jasser &#x00B7; Jeronimo
+                  Jessie {DOT} Jasser {DOT} Jeronimo
                 </strong>
 
                 <small>
@@ -792,7 +981,7 @@ function GamePage() {
                 <span>CLASSES</span>
 
                 <strong>
-                  Infantry &#x00B7; Lancer &#x00B7; Marksman
+                  Infantry {DOT} Lancer {DOT} Marksman
                 </strong>
 
                 <small>
@@ -805,8 +994,9 @@ function GamePage() {
                 <span>ROSTER</span>
 
                 <strong>
-                  {whiteoutHeroMeta.rosterCount} heroes
-                  &#x00B7; Gen 1-17
+                  {whiteoutHeroMeta?.rosterCount ||
+                    allCharacters.length}{' '}
+                  heroes {DOT} Gen 1-17
                 </strong>
 
                 <small>
@@ -820,7 +1010,380 @@ function GamePage() {
 
         {isWhiteout && <WhiteoutHub />}
 
-        <CMSLiveContent gameSlug={game.slug} />
+        <CMSLiveContent
+          gameSlug={game.slug}
+        />
+
+        {(isGenshin || isWhiteout) && (
+          <section className="gnx-character-database">
+            <div className="gnx-character-heading">
+              <div>
+                <span className="section-kicker">
+                  {isWhiteout
+                    ? 'WHITEOUT SURVIVAL'
+                    : 'GENSHIN IMPACT'}
+                </span>
+
+                <h2>
+                  {isWhiteout
+                    ? 'Hero Database'
+                    : 'Character Database'}
+                </h2>
+
+                <p>
+                  {isWhiteout
+                    ? `Browse ${allCharacters.length} heroes by name, class, rarity and generation.`
+                    : `Browse ${allCharacters.length} Genshin Impact characters by name, element, rarity and weapon.`}
+                </p>
+              </div>
+
+              <div className="gnx-character-count">
+                <strong>
+                  {filteredCharacters.length}
+                </strong>
+
+                <span>
+                  {isWhiteout
+                    ? 'heroes shown'
+                    : 'characters shown'}
+                </span>
+              </div>
+            </div>
+
+            <div className="gnx-character-filters">
+              <input
+                type="search"
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder={
+                  isWhiteout
+                    ? 'Search heroes...'
+                    : 'Search characters, elements, weapons...'
+                }
+                aria-label={
+                  isWhiteout
+                    ? 'Search heroes'
+                    : 'Search Genshin characters'
+                }
+              />
+
+              <select
+                value={rarityFilter}
+                onChange={(event) =>
+                  setRarityFilter(
+                    event.target.value
+                  )
+                }
+                aria-label="Filter by rarity"
+              >
+                <option value="all">
+                  All Rarities
+                </option>
+
+                {rarities.map((rarity) => (
+                  <option
+                    key={String(rarity)}
+                    value={String(rarity)}
+                  >
+                    {String(rarity)}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={typeFilter}
+                onChange={(event) =>
+                  setTypeFilter(
+                    event.target.value
+                  )
+                }
+                aria-label={
+                  isWhiteout
+                    ? 'Filter by class'
+                    : 'Filter by element'
+                }
+              >
+                <option value="all">
+                  {isWhiteout
+                    ? 'All Classes'
+                    : 'All Elements'}
+                </option>
+
+                {types.map((type) => (
+                  <option
+                    key={String(type)}
+                    value={String(type)}
+                  >
+                    {String(type)}
+                  </option>
+                ))}
+              </select>
+
+              {isWhiteout &&
+                generations.length > 0 && (
+                  <select
+                    value={
+                      generationFilter
+                    }
+                    onChange={(event) =>
+                      setGenerationFilter(
+                        event.target.value
+                      )
+                    }
+                    aria-label="Filter by generation"
+                  >
+                    <option value="all">
+                      All Generations
+                    </option>
+
+                    {generations.map(
+                      (generation) => (
+                        <option
+                          key={generation}
+                          value={String(
+                            generation
+                          )}
+                        >
+                          Generation {generation}
+                        </option>
+                      )
+                    )}
+                  </select>
+                )}
+
+              <select
+                value={sortOrder}
+                onChange={(event) =>
+                  setSortOrder(
+                    event.target.value
+                  )
+                }
+                aria-label="Sort characters"
+              >
+                <option value="default">
+                  Default Order
+                </option>
+
+                <option value="az">
+                  Name A-Z
+                </option>
+
+                <option value="za">
+                  Name Z-A
+                </option>
+
+                {isWhiteout && (
+                  <option value="generation">
+                    Generation
+                  </option>
+                )}
+              </select>
+
+              <button
+                type="button"
+                onClick={resetFilters}
+              >
+                Reset
+              </button>
+            </div>
+
+            {filteredCharacters.length > 0 ? (
+              <div className="gnx-character-grid">
+                {filteredCharacters.map(
+                  (character, index) => {
+                    const name =
+                      getCharacterName(
+                        character
+                      )
+
+                    const image =
+                      getCharacterImage(
+                        character
+                      )
+
+                    const rarity =
+                      getCharacterRarity(
+                        character
+                      )
+
+                    const element =
+                      getCharacterElement(
+                        character
+                      )
+
+                    const type =
+                      getCharacterType(
+                        character
+                      )
+
+                    const weapon =
+                      getCharacterWeapon(
+                        character
+                      )
+
+                    const generation =
+                      getCharacterGeneration(
+                        character
+                      )
+
+                    const role =
+                      character?.role ||
+                      character?.class ||
+                      ''
+
+                    return (
+                      <button
+                        type="button"
+                        className="gnx-character-card"
+                        key={getCharacterId(
+                          character,
+                          index
+                        )}
+                        onClick={() =>
+                          setSelectedCharacter(
+                            character
+                          )
+                        }
+                      >
+                        <div className="gnx-character-image">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={name}
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.style.display =
+                                  'none'
+
+                                const fallback =
+                                  event.currentTarget
+                                    .parentElement
+                                    ?.querySelector(
+                                      '.gnx-character-image-fallback'
+                                    )
+
+                                if (
+                                  fallback
+                                ) {
+                                  fallback.style.display =
+                                    'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+
+                          <div
+                            className="gnx-character-image-fallback"
+                            style={{
+                              display: image
+                                ? 'none'
+                                : 'flex',
+                            }}
+                          >
+                            <span>
+                              {isWhiteout
+                                ? '&#x1F9B8;'
+                                : '&#x2726;'}
+                            </span>
+                          </div>
+
+                          {rarity && (
+                            <span className="gnx-character-rarity">
+                              {String(rarity)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="gnx-character-content">
+                          <h3>{name}</h3>
+
+                          <div className="gnx-character-meta">
+                            {isGenshin &&
+                              element && (
+                                <span>
+                                  {String(
+                                    element
+                                  )}
+                                </span>
+                              )}
+
+                            {isGenshin &&
+                              weapon && (
+                                <span>
+                                  {String(
+                                    weapon
+                                  )}
+                                </span>
+                              )}
+
+                            {isWhiteout &&
+                              type && (
+                                <span>
+                                  {String(
+                                    type
+                                  )}
+                                </span>
+                              )}
+
+                            {role && (
+                              <span>
+                                {String(
+                                  role
+                                )}
+                              </span>
+                            )}
+
+                            {isWhiteout &&
+                              generation !==
+                                '' && (
+                                <span>
+                                  Gen{' '}
+                                  {String(
+                                    generation
+                                  )}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  }
+                )}
+              </div>
+            ) : (
+              <div className="gnx-character-empty">
+                <span>
+                  &#x1F50E;
+                </span>
+
+                <h3>
+                  {allCharacters.length > 0
+                    ? 'No characters match your filters'
+                    : isGenshin
+                      ? 'Genshin character data was not found'
+                      : 'Hero data was not found'}
+                </h3>
+
+                <p>
+                  {allCharacters.length > 0
+                    ? 'Try changing your search or filters.'
+                    : 'Check the local character database and CMS collection.'}
+                </p>
+
+                {allCharacters.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {featured.length > 0 && (
           <section className="content-section">
@@ -835,51 +1398,57 @@ function GamePage() {
             </div>
 
             <div className="featured-grid">
-              {featured.map((item, index) => (
-                <article
-                  className="featured-card"
-                  key={
-                    item.id ||
-                    item.title ||
-                    index
-                  }
-                >
-                  {item.image && (
-                    <div className="featured-image">
-                      <img
-                        src={item.image}
-                        alt={
-                          item.title ||
-                          'Featured content'
-                        }
-                        loading="lazy"
-                      />
+              {featured.map(
+                (item, index) => (
+                  <article
+                    className="featured-card"
+                    key={
+                      item.id ||
+                      item.title ||
+                      index
+                    }
+                  >
+                    {item.image && (
+                      <div className="featured-image">
+                        <img
+                          src={item.image}
+                          alt={
+                            item.title ||
+                            'Featured content'
+                          }
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+
+                    <div className="featured-content">
+                      {item.category && (
+                        <span>
+                          {item.category}
+                        </span>
+                      )}
+
+                      <h3>{item.title}</h3>
+
+                      {item.description && (
+                        <p>
+                          {item.description}
+                        </p>
+                      )}
+
+                      {item.link && (
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Explore &#x2192;
+                        </a>
+                      )}
                     </div>
-                  )}
-
-                  <div className="featured-content">
-                    {item.category && (
-                      <span>{item.category}</span>
-                    )}
-
-                    <h3>{item.title}</h3>
-
-                    {item.description && (
-                      <p>{item.description}</p>
-                    )}
-
-                    {item.link && (
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Explore &#x2192;
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
+                  </article>
+                )
+              )}
             </div>
           </section>
         )}
@@ -907,13 +1476,15 @@ function GamePage() {
                   ? strategy
                   : [
                       {
-                        title: 'Hero Generations',
+                        title:
+                          'Hero Generations',
                         description:
                           'Understand hero generations and build your lineup around the strongest available heroes.',
                         icon: '&#x2694;&#xFE0F;',
                       },
                       {
-                        title: 'Bear Trap',
+                        title:
+                          'Bear Trap',
                         description:
                           'Choose the right rally heroes and maximize your damage during Bear Trap.',
                         icon: '&#x1F43B;',
@@ -925,41 +1496,45 @@ function GamePage() {
                         icon: '&#x1F3C6;',
                       },
                     ]
-              ).map((item, index) => (
-                <article
-                  className="strategy-card"
-                  key={
-                    item.id ||
-                    item.title ||
-                    index
-                  }
-                >
-                  <div
-                    className="strategy-icon"
-                    dangerouslySetInnerHTML={{
-                      __html: item.icon || '&#x2726;',
-                    }}
-                  />
+              ).map(
+                (item, index) => (
+                  <article
+                    className="strategy-card"
+                    key={
+                      item.id ||
+                      item.title ||
+                      index
+                    }
+                  >
+                    <div
+                      className="strategy-icon"
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          item.icon ||
+                          '&#x2726;',
+                      }}
+                    />
 
-                  <h3>{item.title}</h3>
+                    <h3>{item.title}</h3>
 
-                  <p>
-                    {item.description ||
-                      item.text ||
-                      'Useful Whiteout Survival strategy information.'}
-                  </p>
+                    <p>
+                      {item.description ||
+                        item.text ||
+                        'Useful Whiteout Survival strategy information.'}
+                    </p>
 
-                  {item.link && (
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Learn More &#x2192;
-                    </a>
-                  )}
-                </article>
-              ))}
+                    {item.link && (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Learn More &#x2192;
+                      </a>
+                    )}
+                  </article>
+                )
+              )}
             </div>
           </section>
         )}
@@ -977,46 +1552,50 @@ function GamePage() {
             </div>
 
             <div className="guides-grid">
-              {guides.map((guide, index) => (
-                <Link
-                  key={`${game.slug}-guide-${index}`}
-                  to={`/game/${game.slug}/guides/${index}`}
-                  className="guide-card"
-                >
-                  {guide.image && (
-                    <div className="guide-image">
-                      <img
-                        src={guide.image}
-                        alt={
-                          guide.title ||
-                          'Game guide'
-                        }
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
-
-                  <div className="guide-content">
-                    {guide.category && (
-                      <span className="guide-category">
-                        {guide.category}
-                      </span>
+              {guides.map(
+                (guide, index) => (
+                  <Link
+                    key={`${game.slug}-guide-${index}`}
+                    to={`/game/${game.slug}/guides/${index}`}
+                    className="guide-card"
+                  >
+                    {guide.image && (
+                      <div className="guide-image">
+                        <img
+                          src={guide.image}
+                          alt={
+                            guide.title ||
+                            'Game guide'
+                          }
+                          loading="lazy"
+                        />
+                      </div>
                     )}
 
-                    <h3>{guide.title}</h3>
+                    <div className="guide-content">
+                      {guide.category && (
+                        <span className="guide-category">
+                          {guide.category}
+                        </span>
+                      )}
 
-                    <p>
-                      {guide.desc ||
-                        guide.description ||
-                        'Complete guide and useful information.'}
-                    </p>
+                      <h3>
+                        {guide.title}
+                      </h3>
 
-                    <span className="guide-read-link">
-                      Read Guide &#x2192;
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                      <p>
+                        {guide.desc ||
+                          guide.description ||
+                          'Complete guide and useful information.'}
+                      </p>
+
+                      <span className="guide-read-link">
+                        Read Guide &#x2192;
+                      </span>
+                    </div>
+                  </Link>
+                )
+              )}
             </div>
           </section>
         )}
@@ -1035,7 +1614,10 @@ function GamePage() {
         <div
           className="character-modal-overlay"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
               setSelectedCharacter(null)
             }
           }}
@@ -1061,7 +1643,9 @@ function GamePage() {
 
             <div className="modal-header">
               <div className="modal-character-image">
-                {getCharacterImage(selectedCharacter) ? (
+                {getCharacterImage(
+                  selectedCharacter
+                ) ? (
                   <img
                     src={getCharacterImage(
                       selectedCharacter
@@ -1134,7 +1718,9 @@ function GamePage() {
                           selectedCharacter.element ||
                           ''
                         } character using a ${
-                          selectedCharacter.weapon ||
+                          getCharacterWeapon(
+                            selectedCharacter
+                          ) ||
                           'weapon'
                         }. Use the build snapshot below as a practical starting point, then tune it to your team and rotation.`
                       : `${getCharacterName(
@@ -1153,6 +1739,7 @@ function GamePage() {
                 {selectedCharacter.role && (
                   <div className="detail-box">
                     <span>Role</span>
+
                     <strong>
                       {selectedCharacter.role}
                     </strong>
@@ -1162,6 +1749,7 @@ function GamePage() {
                 {selectedCharacter.tier && (
                   <div className="detail-box detail-tier-box">
                     <span>Tier</span>
+
                     <strong>
                       {selectedCharacter.tier}
                     </strong>
@@ -1171,6 +1759,7 @@ function GamePage() {
                 {selectedCharacter.bestFor && (
                   <div className="detail-box">
                     <span>Best For</span>
+
                     <strong>
                       {selectedCharacter.bestFor}
                     </strong>
@@ -1181,6 +1770,7 @@ function GamePage() {
                   undefined && (
                   <div className="detail-box">
                     <span>Healer</span>
+
                     <strong>
                       {selectedCharacter.healer
                         ? 'Yes'
@@ -1192,7 +1782,10 @@ function GamePage() {
                 {selectedCharacter.rallyJoiner !==
                   undefined && (
                   <div className="detail-box">
-                    <span>Rally Joiner</span>
+                    <span>
+                      Rally Joiner
+                    </span>
+
                     <strong>
                       {selectedCharacter.rallyJoiner
                         ? 'Yes'
@@ -1204,6 +1797,7 @@ function GamePage() {
                 {selectedCharacter.type && (
                   <div className="detail-box">
                     <span>Type</span>
+
                     <strong>
                       {selectedCharacter.type}
                     </strong>
@@ -1213,6 +1807,7 @@ function GamePage() {
                 {selectedCharacter.rarity && (
                   <div className="detail-box">
                     <span>Rarity</span>
+
                     <strong>
                       {selectedCharacter.rarity}
                     </strong>
@@ -1224,9 +1819,14 @@ function GamePage() {
                   selectedCharacter.generation !==
                     null && (
                     <div className="detail-box">
-                      <span>Generation</span>
+                      <span>
+                        Generation
+                      </span>
+
                       <strong>
-                        {selectedCharacter.generation}
+                        {
+                          selectedCharacter.generation
+                        }
                       </strong>
                     </div>
                   )}
@@ -1234,8 +1834,11 @@ function GamePage() {
                 {selectedCharacter.element && (
                   <div className="detail-box">
                     <span>Element</span>
+
                     <strong>
-                      {selectedCharacter.element}
+                      {
+                        selectedCharacter.element
+                      }
                     </strong>
                   </div>
                 )}
@@ -1243,11 +1846,12 @@ function GamePage() {
                 {selectedCharacter.weapon && (
                   <div className="detail-box">
                     <span>Weapon</span>
+
                     <strong>
                       {typeof selectedCharacter.weapon ===
                       'object'
-                        ? selectedCharacter.weapon
-                            .name
+                        ? selectedCharacter
+                            .weapon?.name
                         : selectedCharacter.weapon}
                     </strong>
                   </div>
@@ -1256,6 +1860,7 @@ function GamePage() {
                 {selectedCharacter.region && (
                   <div className="detail-box">
                     <span>Region</span>
+
                     <strong>
                       {selectedCharacter.region}
                     </strong>
@@ -1265,6 +1870,7 @@ function GamePage() {
                 {selectedCharacter.version && (
                   <div className="detail-box">
                     <span>Version</span>
+
                     <strong>
                       {selectedCharacter.version}
                     </strong>
@@ -1274,8 +1880,11 @@ function GamePage() {
                 {selectedCharacter.releaseDate && (
                   <div className="detail-box">
                     <span>Release</span>
+
                     <strong>
-                      {selectedCharacter.releaseDate}
+                      {
+                        selectedCharacter.releaseDate
+                      }
                     </strong>
                   </div>
                 )}
@@ -1283,8 +1892,11 @@ function GamePage() {
                 {selectedCharacter.modelType && (
                   <div className="detail-box">
                     <span>Model</span>
+
                     <strong>
-                      {selectedCharacter.modelType}
+                      {
+                        selectedCharacter.modelType
+                      }
                     </strong>
                   </div>
                 )}
@@ -1292,8 +1904,11 @@ function GamePage() {
                 {selectedCharacter.bearTrap && (
                   <div className="detail-box">
                     <span>Bear Trap</span>
+
                     <strong>
-                      {selectedCharacter.bearTrap}
+                      {
+                        selectedCharacter.bearTrap
+                      }
                     </strong>
                   </div>
                 )}
@@ -1301,6 +1916,7 @@ function GamePage() {
                 {selectedCharacter.arena && (
                   <div className="detail-box">
                     <span>Arena</span>
+
                     <strong>
                       {selectedCharacter.arena}
                     </strong>
@@ -1336,47 +1952,73 @@ function GamePage() {
                     <>
                       <div className="hero-build-grid">
                         <div className="build-box">
-                          <span>Artifacts</span>
+                          <span>
+                            Artifacts
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.artifacts}
+                            {
+                              selectedBuildProfile.artifacts
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Main Stats</span>
+                          <span>
+                            Main Stats
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.mainStats}
+                            {
+                              selectedBuildProfile.mainStats
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Substats</span>
+                          <span>
+                            Substats
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.substats}
+                            {
+                              selectedBuildProfile.substats
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Talent Priority</span>
+                          <span>
+                            Talent Priority
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.talentPriority}
+                            {
+                              selectedBuildProfile.talentPriority
+                            }
                           </strong>
                         </div>
                       </div>
 
                       <div className="build-callout">
                         <b>Weapon</b>
+
                         <span>
-                          {selectedBuildProfile.weaponAdvice}
+                          {
+                            selectedBuildProfile.weaponAdvice
+                          }
                         </span>
                       </div>
 
                       <div className="build-callout">
                         <b>Ascension</b>
+
                         <span>
-                          {selectedBuildProfile.ascensionGem}{' '}
-                          + character-specific local, boss
-                          and enemy materials.
+                          {
+                            selectedBuildProfile.ascensionGem
+                          }{' '}
+                          + character-specific local,
+                          boss and enemy materials.
                         </span>
                       </div>
                     </>
@@ -1384,21 +2026,32 @@ function GamePage() {
                     <>
                       <div className="hero-build-grid">
                         <div className="build-box">
-                          <span>Formation</span>
+                          <span>
+                            Formation
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.formation}
+                            {
+                              selectedBuildProfile.formation
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Exclusive Gear</span>
+                          <span>
+                            Exclusive Gear
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.exclusiveGear}
+                            {
+                              selectedBuildProfile.exclusiveGear
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
                           <span>Class</span>
+
                           <strong>
                             {selectedCharacter.troopType ||
                               'Infantry / Lancer / Marksman'}
@@ -1406,7 +2059,10 @@ function GamePage() {
                         </div>
 
                         <div className="build-box">
-                          <span>Best For</span>
+                          <span>
+                            Best For
+                          </span>
+
                           <strong>
                             {selectedCharacter.bestFor ||
                               'General combat'}
@@ -1415,9 +2071,14 @@ function GamePage() {
                       </div>
 
                       <div className="build-callout">
-                        <b>Skill Priority</b>
+                        <b>
+                          Skill Priority
+                        </b>
+
                         <span>
-                          {selectedBuildProfile.skillPriority}
+                          {
+                            selectedBuildProfile.skillPriority
+                          }
                         </span>
                       </div>
                     </>
@@ -1427,27 +2088,43 @@ function GamePage() {
 
               {selectedCharacter.synergy && (
                 <section className="modal-section modal-advice-section">
-                  <h3>Team Synergy</h3>
-                  <p>{selectedCharacter.synergy}</p>
+                  <h3>
+                    Team Synergy
+                  </h3>
+
+                  <p>
+                    {selectedCharacter.synergy}
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.notes && (
                 <section className="modal-section modal-advice-section">
-                  <h3>GameNexa Notes</h3>
-                  <p>{selectedCharacter.notes}</p>
+                  <h3>
+                    GameNexa Notes
+                  </h3>
+
+                  <p>
+                    {selectedCharacter.notes}
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.skills &&
-                Array.isArray(selectedCharacter.skills) &&
-                selectedCharacter.skills.length > 0 && (
+                Array.isArray(
+                  selectedCharacter.skills
+                ) &&
+                selectedCharacter.skills
+                  .length > 0 && (
                   <section className="modal-section">
                     <h3>Skills</h3>
 
                     <div className="skills-list">
                       {selectedCharacter.skills.map(
-                        (skill, index) => (
+                        (
+                          skill,
+                          index
+                        ) => (
                           <article
                             className="skill-card"
                             key={
@@ -1458,7 +2135,9 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={skill.image}
+                                src={
+                                  skill.image
+                                }
                                 alt={
                                   skill.name ||
                                   'Skill'
@@ -1470,12 +2149,16 @@ function GamePage() {
                             <div>
                               <h4>
                                 {skill.name ||
-                                  `Skill ${index + 1}`}
+                                  `Skill ${
+                                    index + 1
+                                  }`}
                               </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1528,11 +2211,16 @@ function GamePage() {
                   selectedCharacter.expedition
                 ) && (
                   <section className="modal-section">
-                    <h3>Expedition</h3>
+                    <h3>
+                      Expedition
+                    </h3>
 
                     <div className="skills-list">
                       {selectedCharacter.expedition.map(
-                        (skill, index) => (
+                        (
+                          skill,
+                          index
+                        ) => (
                           <article
                             className="skill-card"
                             key={
@@ -1543,7 +2231,9 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={skill.image}
+                                src={
+                                  skill.image
+                                }
                                 alt={
                                   skill.name ||
                                   'Skill'
@@ -1553,11 +2243,15 @@ function GamePage() {
                             )}
 
                             <div>
-                              <h4>{skill.name}</h4>
+                              <h4>
+                                {skill.name}
+                              </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1586,17 +2280,22 @@ function GamePage() {
                 typeof selectedCharacter.weapon ===
                   'object' &&
                 Array.isArray(
-                  selectedCharacter.weapon.skills
+                  selectedCharacter.weapon
+                    .skills
                 ) && (
                   <section className="modal-section">
                     <h3>
-                      {selectedCharacter.weapon.name ||
+                      {selectedCharacter
+                          .weapon?.name ||
                         'Weapon'}
                     </h3>
 
                     <div className="skills-list">
                       {selectedCharacter.weapon.skills.map(
-                        (skill, index) => (
+                        (
+                          skill,
+                          index
+                        ) => (
                           <article
                             className="skill-card"
                             key={
@@ -1607,7 +2306,9 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={skill.image}
+                                src={
+                                  skill.image
+                                }
                                 alt={
                                   skill.name ||
                                   'Weapon skill'
@@ -1617,11 +2318,15 @@ function GamePage() {
                             )}
 
                             <div>
-                              <h4>{skill.name}</h4>
+                              <h4>
+                                {skill.name}
+                              </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1648,21 +2353,264 @@ function GamePage() {
 
               {selectedCharacter.howToGet && (
                 <section className="modal-section">
-                  <h3>How to Get</h3>
-                  <p>{selectedCharacter.howToGet}</p>
+                  <h3>
+                    How to Get
+                  </h3>
+
+                  <p>
+                    {
+                      selectedCharacter.howToGet
+                    }
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.notes && (
                 <section className="modal-section">
                   <h3>Notes</h3>
-                  <p>{selectedCharacter.notes}</p>
+
+                  <p>
+                    {selectedCharacter.notes}
+                  </p>
                 </section>
               )}
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .gnx-character-database {
+          margin: 32px 0;
+          padding: 28px;
+          border-radius: 22px;
+          background: var(--card-bg, rgba(255,255,255,.04));
+          border: 1px solid var(--border-color, rgba(255,255,255,.10));
+        }
+
+        .gnx-character-heading {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 22px;
+        }
+
+        .gnx-character-heading h2 {
+          margin: 5px 0 8px;
+        }
+
+        .gnx-character-heading p {
+          margin: 0;
+          opacity: .72;
+        }
+
+        .gnx-character-count {
+          min-width: 110px;
+          padding: 12px 16px;
+          border-radius: 14px;
+          text-align: center;
+          background: rgba(255,255,255,.06);
+        }
+
+        .gnx-character-count strong {
+          display: block;
+          font-size: 24px;
+        }
+
+        .gnx-character-count span {
+          display: block;
+          margin-top: 2px;
+          font-size: 12px;
+          opacity: .65;
+        }
+
+        .gnx-character-filters {
+          display: grid;
+          grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(130px, 1fr));
+          gap: 10px;
+          margin-bottom: 22px;
+        }
+
+        .gnx-character-filters input,
+        .gnx-character-filters select,
+        .gnx-character-filters button {
+          width: 100%;
+          min-height: 44px;
+          padding: 0 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(255,255,255,.12);
+          background: rgba(0,0,0,.16);
+          color: inherit;
+          font: inherit;
+        }
+
+        .gnx-character-filters button {
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .gnx-character-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+          gap: 16px;
+        }
+
+        .gnx-character-card {
+          display: block;
+          width: 100%;
+          padding: 0;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.10);
+          border-radius: 16px;
+          background: rgba(255,255,255,.035);
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .gnx-character-card:hover {
+          transform: translateY(-4px);
+          border-color: rgba(255,255,255,.24);
+          box-shadow: 0 12px 28px rgba(0,0,0,.20);
+        }
+
+        .gnx-character-image {
+          position: relative;
+          aspect-ratio: 3 / 4;
+          overflow: hidden;
+          background: rgba(0,0,0,.16);
+        }
+
+        .gnx-character-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .gnx-character-image-fallback {
+          position: absolute;
+          inset: 0;
+          align-items: center;
+          justify-content: center;
+          font-size: 42px;
+          opacity: .45;
+        }
+
+        .gnx-character-rarity {
+          position: absolute;
+          left: 9px;
+          bottom: 9px;
+          padding: 4px 8px;
+          border-radius: 999px;
+          background: rgba(0,0,0,.68);
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .gnx-character-content {
+          padding: 13px;
+        }
+
+        .gnx-character-content h3 {
+          margin: 0 0 9px;
+          font-size: 16px;
+          line-height: 1.25;
+        }
+
+        .gnx-character-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+        }
+
+        .gnx-character-meta span {
+          padding: 4px 7px;
+          border-radius: 7px;
+          background: rgba(255,255,255,.07);
+          font-size: 10px;
+          line-height: 1.2;
+          opacity: .78;
+        }
+
+        .gnx-character-empty {
+          padding: 50px 20px;
+          text-align: center;
+          border-radius: 16px;
+          background: rgba(255,255,255,.025);
+        }
+
+        .gnx-character-empty > span {
+          display: block;
+          margin-bottom: 10px;
+          font-size: 36px;
+        }
+
+        .gnx-character-empty h3 {
+          margin: 0 0 8px;
+        }
+
+        .gnx-character-empty p {
+          margin: 0 0 18px;
+          opacity: .65;
+        }
+
+        .gnx-character-empty button {
+          min-height: 42px;
+          padding: 0 18px;
+          border: 1px solid rgba(255,255,255,.14);
+          border-radius: 9px;
+          background: rgba(255,255,255,.07);
+          color: inherit;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        @media (max-width: 900px) {
+          .gnx-character-filters {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .gnx-character-filters input {
+            grid-column: 1 / -1;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .gnx-character-database {
+            padding: 18px;
+            border-radius: 16px;
+          }
+
+          .gnx-character-heading {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .gnx-character-count {
+            width: 100%;
+          }
+
+          .gnx-character-filters {
+            grid-template-columns: 1fr;
+          }
+
+          .gnx-character-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .gnx-character-content {
+            padding: 10px;
+          }
+
+          .gnx-character-content h3 {
+            font-size: 14px;
+          }
+        }
+      `}</style>
     </main>
   )
 }
