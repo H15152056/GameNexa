@@ -39,13 +39,36 @@ function getCharacterImage(character) {
 }
 
 function getCharacterRarity(character) {
-  return (
-    character?.rarity ||
-    character?.quality ||
-    character?.tier ||
-    character?.rank ||
+  const raw =
+    character?.rarity ??
+    character?.quality ??
+    character?.tier ??
+    character?.rank ??
     ''
-  )
+
+  if (raw === '' || raw === null || raw === undefined) {
+    return ''
+  }
+
+  const value = String(raw).trim()
+
+  // Normalize common mojibake / encoded star values so the UI always
+  // renders a clean 4★ / 5★ badge without changing character images.
+  const normalized = value
+    .replace(/â˜…/g, '★')
+    .replace(/âœ…/g, '★')
+    .replace(/\u2605/g, '★')
+    .replace(/\x2605/g, '★')
+
+  if (/^5\s*★?$/i.test(normalized) || /^5\s*star$/i.test(normalized)) {
+    return '5★'
+  }
+
+  if (/^4\s*★?$/i.test(normalized) || /^4\s*star$/i.test(normalized)) {
+    return '4★'
+  }
+
+  return normalized
 }
 
 function getCharacterType(character) {
@@ -574,94 +597,6 @@ function GamePage() {
 
   return (
     <main className={gameClass}>
-      <style>{`
-        .character-modal {
-          position: relative !important;
-          isolation: isolate;
-          overflow: hidden;
-          background: transparent !important;
-        }
-
-        .character-modal-background {
-          position: absolute !important;
-          inset: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          display: block !important;
-          object-fit: cover !important;
-          object-position: center top !important;
-          z-index: 0 !important;
-          opacity: 0.34 !important;
-          filter: blur(1.5px) !important;
-          transform: scale(1.035) !important;
-          pointer-events: none !important;
-        }
-
-        .character-modal-background-overlay {
-          position: absolute !important;
-          inset: 0 !important;
-          z-index: 1 !important;
-          pointer-events: none !important;
-          background: linear-gradient(180deg, rgba(7, 9, 18, 0.16) 0%, rgba(7, 9, 18, 0.46) 36%, rgba(7, 9, 18, 0.78) 72%, rgba(7, 9, 18, 0.94) 100%) !important;
-        }
-
-        .character-modal-content {
-          position: relative;
-          z-index: 1;
-          min-height: 100%;
-        }
-
-        .character-modal .modal-header {
-          position: relative;
-          z-index: 2;
-          background: rgba(0, 0, 0, 0.12) !important;
-        }
-
-        .character-modal .modal-body {
-          position: relative;
-          z-index: 2;
-          background: transparent !important;
-        }
-
-        .character-modal .modal-section,
-        .character-modal .detail-box,
-        .character-modal .build-box,
-        .character-modal .build-callout,
-        .character-modal .skill-card,
-        .character-modal .modal-body > * {
-          background-color: rgba(10, 16, 28, 0.54) !important;
-        }
-
-        .character-modal .modal-section,
-        .character-modal .detail-box,
-        .character-modal .build-box,
-        .character-modal .build-callout,
-        .character-modal .skill-card {
-          backdrop-filter: blur(10px);
-        }
-
-        .character-modal .modal-character-image {
-          position: relative;
-          z-index: 3;
-          overflow: hidden;
-          background: rgba(0, 0, 0, 0.30);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
-        }
-
-        .character-modal .modal-character-image img {
-          width: 100%;
-          height: 100%;
-          display: block;
-          object-fit: cover;
-        }
-
-        .character-modal .modal-close {
-          position: relative;
-          z-index: 10;
-        }
-      `}</style>
-
       <SEO
         title={`${gameName} Database & Guides | GameNexa`}
         description={gameDescription}
@@ -1445,14 +1380,6 @@ function GamePage() {
               selectedCharacter
             )} details`}
           >
-            <img
-              className="character-modal-background"
-              src={getCharacterImage(selectedCharacter)}
-              alt=""
-              aria-hidden="true"
-            />
-            <div className="character-modal-background-overlay" />
-            <div className="character-modal-content">
             <button
               type="button"
               className="modal-close"
@@ -2161,7 +2088,6 @@ function GamePage() {
                   </p>
                 </section>
               )}
-            </div>
             </div>
           </div>
         </div>
