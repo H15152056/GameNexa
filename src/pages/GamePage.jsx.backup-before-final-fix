@@ -16,42 +16,9 @@ function slugify(value = '') {
   return String(value)
     .toLowerCase()
     .trim()
-    .replace(/['\u2019]/g, '')
+    .replace(/['â€™]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-}
-
-function normalizeCharacterCollection(value) {
-  if (Array.isArray(value)) return value
-
-  if (!value || typeof value !== 'object') return []
-
-  const candidates = [
-    value.characters,
-    value.genshinCharacters,
-    value.heroes,
-    value.data,
-    value.items,
-    value.list,
-    value.default,
-  ]
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate
-  }
-
-  const objectValues = Object.values(value)
-
-  if (
-    objectValues.length > 0 &&
-    objectValues.every(
-      (item) => item && typeof item === 'object'
-    )
-  ) {
-    return objectValues
-  }
-
-  return []
 }
 
 function getCharacterName(character) {
@@ -114,6 +81,14 @@ function GamePage() {
     params.game ||
     ''
 
+  /*
+   * ============================================================
+   * CMS GAME DATA
+   * ============================================================
+   *
+   * This merges the original static gamesData with CMS content.
+   * CMS-created guides are therefore available on this page too.
+   */
   const cmsGamesData = useCMSGamesData(gamesData)
 
   const [search, setSearch] = useState('')
@@ -137,35 +112,47 @@ function GamePage() {
     }
 
     const requestedSlug = slugify(decodedSlug)
-    const compactRequestedSlug = requestedSlug.replace(/-/g, '')
+    const compactRequestedSlug =
+      requestedSlug.replace(/-/g, '')
 
     const matches = (key, item) => {
-      if (key && slugify(key) === requestedSlug) return true
+      if (key && slugify(key) === requestedSlug) {
+        return true
+      }
 
       if (
         key &&
-        slugify(key).replace(/-/g, '') === compactRequestedSlug
+        slugify(key).replace(/-/g, '') ===
+          compactRequestedSlug
       ) {
         return true
       }
 
-      if (!item || typeof item !== 'object') return false
+      if (!item || typeof item !== 'object') {
+        return false
+      }
 
       const itemSlug = slugify(item.slug || '')
       const itemName = slugify(item.name || '')
 
-      if (itemSlug === requestedSlug) return true
+      if (itemSlug === requestedSlug) {
+        return true
+      }
 
       if (
-        itemSlug.replace(/-/g, '') === compactRequestedSlug
+        itemSlug.replace(/-/g, '') ===
+        compactRequestedSlug
       ) {
         return true
       }
 
-      if (itemName === requestedSlug) return true
+      if (itemName === requestedSlug) {
+        return true
+      }
 
       if (
-        itemName.replace(/-/g, '') === compactRequestedSlug
+        itemName.replace(/-/g, '') ===
+        compactRequestedSlug
       ) {
         return true
       }
@@ -175,8 +162,9 @@ function GamePage() {
 
     if (Array.isArray(cmsGamesData)) {
       return (
-        cmsGamesData.find((item) => matches('', item)) ||
-        null
+        cmsGamesData.find((item) =>
+          matches('', item)
+        ) || null
       )
     }
 
@@ -187,31 +175,36 @@ function GamePage() {
     return match ? match[1] : null
   }, [gameSlug, cmsGamesData])
 
-  const normalizedGameSlug = slugify(gameSlug)
-
   const isGenshin =
-    normalizedGameSlug === 'genshin-impact' ||
-    slugify(game?.slug) === 'genshin-impact' ||
+    gameSlug === 'genshin-impact' ||
+    game?.slug === 'genshin-impact' ||
     slugify(game?.name) === 'genshin-impact'
 
   const isWhiteout =
-    normalizedGameSlug === 'whiteout-survival' ||
-    slugify(game?.slug) === 'whiteout-survival' ||
+    gameSlug === 'whiteout-survival' ||
+    game?.slug === 'whiteout-survival' ||
     slugify(game?.name) === 'whiteout-survival'
 
   const databaseCharacters = useMemo(() => {
     if (isGenshin) {
-      return normalizeCharacterCollection(genshinCharacters)
+      return Array.isArray(genshinCharacters)
+        ? genshinCharacters
+        : []
     }
 
+    /*
+     * IMPORTANT:
+     * Whiteout heroes MUST come from gamesData.js.
+     * gameCharacters.js is intentionally NOT used for Whiteout.
+     */
     if (isWhiteout) {
-      return normalizeCharacterCollection(whiteoutHeroes)
+      return Array.isArray(whiteoutHeroes)
+        ? whiteoutHeroes
+        : []
     }
 
     if (game?.slug) {
-      return normalizeCharacterCollection(
-        gameCharacters?.[game.slug]
-      )
+      return gameCharacters?.[game.slug] || []
     }
 
     return []
@@ -264,9 +257,7 @@ function GamePage() {
                 item.status !== 'draft'
             )
           }
-        } catch {
-          items = []
-        }
+        } catch {}
 
         if (active) {
           setCmsCharacterItems(items)
@@ -286,10 +277,11 @@ function GamePage() {
   }, [isGenshin, isWhiteout])
 
   const allCharacters = useMemo(() => {
-    const staticItems = normalizeCharacterCollection(
-      databaseCharacters
-    ).filter(Boolean)
+    if (!Array.isArray(databaseCharacters)) {
+      return []
+    }
 
+    const staticItems = databaseCharacters.filter(Boolean)
     const cmsItems = Array.isArray(cmsCharacterItems)
       ? cmsCharacterItems.filter(Boolean)
       : []
@@ -368,7 +360,10 @@ function GamePage() {
         slug:
           cmsItem?.slug ||
           cmsItem?.id ||
-          slugify(cmsName),
+          String(cmsName)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, ''),
 
         name: cmsName,
 
@@ -436,7 +431,8 @@ function GamePage() {
     })
 
     return merged.filter(Boolean)
-  }, [databaseCharacters, cmsCharacterItems, isGenshin, isWhiteout])
+  }, [databaseCharacters, cmsCharacterItems])
+
 
   const generations = useMemo(() => {
     if (!isWhiteout) return []
@@ -558,8 +554,12 @@ function GamePage() {
         )
 
         return (
-          (Number.isFinite(genB) ? genB : -1) -
-          (Number.isFinite(genA) ? genA : -1)
+          (Number.isFinite(genB)
+            ? genB
+            : -1) -
+          (Number.isFinite(genA)
+            ? genA
+            : -1)
         )
       })
     }
@@ -616,9 +616,13 @@ function GamePage() {
   const selectedBuildProfile =
     selectedCharacter
       ? isGenshin
-        ? getGenshinBuildProfile(selectedCharacter)
+        ? getGenshinBuildProfile(
+            selectedCharacter
+          )
         : isWhiteout
-          ? getWhiteoutBuildProfile(selectedCharacter)
+          ? getWhiteoutBuildProfile(
+              selectedCharacter
+            )
           : null
       : null
 
@@ -627,7 +631,9 @@ function GamePage() {
       <main className="game-page">
         <div className="game-page-container">
           <section className="game-not-found">
-            <span className="not-found-icon">&#x1F3AE;</span>
+            <span className="not-found-icon">
+              ðŸŽ®
+            </span>
 
             <h1>Game Not Found</h1>
 
@@ -659,7 +665,7 @@ function GamePage() {
   const gameDescription = isWhiteout
     ? 'Full Whiteout Survival hero database with roles and generations, plus a complete hub: battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops and calculators.'
     : isGenshin
-      ? 'Browse every Genshin Impact character with elements, weapons, roles and build direction - artifacts, main stats, talent priority and weapon advice.'
+      ? 'Browse every Genshin Impact character with elements, weapons, roles and build direction â€” artifacts, main stats, talent priority and weapon advice.'
       : game.description ||
         `Explore the latest ${gameName} characters, guides, builds, and database information on GameNexa.`
 
@@ -683,8 +689,12 @@ function GamePage() {
 
   const gameClass = [
     'game-page',
-    isGenshin ? 'game-theme-genshin' : '',
-    isWhiteout ? 'game-theme-whiteout' : '',
+    isGenshin
+      ? 'game-theme-genshin'
+      : '',
+    isWhiteout
+      ? 'game-theme-whiteout'
+      : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -701,10 +711,11 @@ function GamePage() {
           to="/"
           className="back-link"
         >
-          <span>&#x2190;</span>
+          <span>â†</span>
           Back to Games
         </Link>
 
+        {/* HERO */}
         <section
           className="game-hero"
           style={
@@ -731,18 +742,23 @@ function GamePage() {
 
             <div className="game-stats">
               <div className="game-stat">
-                <strong>{allCharacters.length}</strong>
+                <strong>
+                  {allCharacters.length}
+                </strong>
+
                 <span>Characters</span>
               </div>
 
               <div className="game-stat">
                 <strong>{guides.length}</strong>
+
                 <span>Guides</span>
               </div>
             </div>
           </div>
         </section>
 
+        {/* WHITEOUT QUICK INTELLIGENCE */}
         {isWhiteout && (
           <section className="whiteout-intel">
             <div className="whiteout-intel-heading">
@@ -766,7 +782,7 @@ function GamePage() {
 
                 <strong>
                   {whiteoutHeroMeta.healerNames.join(
-                    ' &#x00B7; '
+                    ' Â· '
                   )}
                 </strong>
 
@@ -779,7 +795,7 @@ function GamePage() {
                 <span>CORE JOINERS</span>
 
                 <strong>
-                  Jessie &#x00B7; Jasser &#x00B7; Jeronimo
+                  Jessie Â· Jasser Â· Jeronimo
                 </strong>
 
                 <small>
@@ -792,7 +808,7 @@ function GamePage() {
                 <span>CLASSES</span>
 
                 <strong>
-                  Infantry &#x00B7; Lancer &#x00B7; Marksman
+                  Infantry Â· Lancer Â· Marksman
                 </strong>
 
                 <small>
@@ -806,7 +822,7 @@ function GamePage() {
 
                 <strong>
                   {whiteoutHeroMeta.rosterCount} heroes
-                  &#x00B7; Gen 1-17
+                  Â· Gen 1â€“17
                 </strong>
 
                 <small>
@@ -818,10 +834,13 @@ function GamePage() {
           </section>
         )}
 
+        {/* WHITEOUT SURVIVAL HUB */}
         {isWhiteout && <WhiteoutHub />}
 
         <CMSLiveContent gameSlug={game.slug} />
 
+        {/* DATABASE â€” Whiteout Survival Heroes now renders after the
+            Whiteout Survival Hub, as a separate Characters section */}
         {featured.length > 0 && (
           <section className="content-section">
             <div className="section-title-row">
@@ -859,13 +878,17 @@ function GamePage() {
 
                   <div className="featured-content">
                     {item.category && (
-                      <span>{item.category}</span>
+                      <span>
+                        {item.category}
+                      </span>
                     )}
 
                     <h3>{item.title}</h3>
 
                     {item.description && (
-                      <p>{item.description}</p>
+                      <p>
+                        {item.description}
+                      </p>
                     )}
 
                     {item.link && (
@@ -874,7 +897,7 @@ function GamePage() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Explore &#x2192;
+                        Explore â†’
                       </a>
                     )}
                   </div>
@@ -884,6 +907,7 @@ function GamePage() {
           </section>
         )}
 
+        {/* WHITEOUT STRATEGY */}
         {isWhiteout && (
           <section className="content-section strategy-hub">
             <div className="section-title-row">
@@ -907,22 +931,23 @@ function GamePage() {
                   ? strategy
                   : [
                       {
-                        title: 'Hero Generations',
+                        title:
+                          'Hero Generations',
                         description:
                           'Understand hero generations and build your lineup around the strongest available heroes.',
-                        icon: '&#x2694;&#xFE0F;',
+                        icon: 'âš”',
                       },
                       {
                         title: 'Bear Trap',
                         description:
                           'Choose the right rally heroes and maximize your damage during Bear Trap.',
-                        icon: '&#x1F43B;',
+                        icon: 'ðŸ»',
                       },
                       {
                         title: 'Arena',
                         description:
                           'Learn which heroes perform best in PvP and how to build an effective Arena lineup.',
-                        icon: '&#x1F3C6;',
+                        icon: 'ðŸ†',
                       },
                     ]
               ).map((item, index) => (
@@ -934,12 +959,9 @@ function GamePage() {
                     index
                   }
                 >
-                  <div
-                    className="strategy-icon"
-                    dangerouslySetInnerHTML={{
-                      __html: item.icon || '&#x2726;',
-                    }}
-                  />
+                  <div className="strategy-icon">
+                    {item.icon || 'âœ¦'}
+                  </div>
 
                   <h3>{item.title}</h3>
 
@@ -955,7 +977,7 @@ function GamePage() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Learn More &#x2192;
+                      Learn More â†’
                     </a>
                   )}
                 </article>
@@ -964,6 +986,7 @@ function GamePage() {
           </section>
         )}
 
+        {/* GUIDES */}
         {guides.length > 0 && (
           <section className="content-section">
             <div className="section-title-row">
@@ -1012,7 +1035,7 @@ function GamePage() {
                     </p>
 
                     <span className="guide-read-link">
-                      Read Guide &#x2192;
+                      Read Guide â†’
                     </span>
                   </div>
                 </Link>
@@ -1031,11 +1054,15 @@ function GamePage() {
         )}
       </div>
 
+      {/* CHARACTER MODAL */}
       {selectedCharacter && (
         <div
           className="character-modal-overlay"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
               setSelectedCharacter(null)
             }
           }}
@@ -1056,12 +1083,14 @@ function GamePage() {
               }
               aria-label="Close"
             >
-              &#x00D7;
+              Ã—
             </button>
 
             <div className="modal-header">
               <div className="modal-character-image">
-                {getCharacterImage(selectedCharacter) ? (
+                {getCharacterImage(
+                  selectedCharacter
+                ) ? (
                   <img
                     src={getCharacterImage(
                       selectedCharacter
@@ -1071,7 +1100,7 @@ function GamePage() {
                     )}
                   />
                 ) : (
-                  <span>&#x2726;</span>
+                  <span>âœ¦</span>
                 )}
               </div>
 
@@ -1141,7 +1170,7 @@ function GamePage() {
                           selectedCharacter
                         )} is a Generation ${
                           selectedCharacter.generation ||
-                          '-'
+                          'â€”'
                         } ${
                           selectedCharacter.troopType ||
                           ''
@@ -1153,6 +1182,7 @@ function GamePage() {
                 {selectedCharacter.role && (
                   <div className="detail-box">
                     <span>Role</span>
+
                     <strong>
                       {selectedCharacter.role}
                     </strong>
@@ -1162,6 +1192,7 @@ function GamePage() {
                 {selectedCharacter.tier && (
                   <div className="detail-box detail-tier-box">
                     <span>Tier</span>
+
                     <strong>
                       {selectedCharacter.tier}
                     </strong>
@@ -1171,6 +1202,7 @@ function GamePage() {
                 {selectedCharacter.bestFor && (
                   <div className="detail-box">
                     <span>Best For</span>
+
                     <strong>
                       {selectedCharacter.bestFor}
                     </strong>
@@ -1181,6 +1213,7 @@ function GamePage() {
                   undefined && (
                   <div className="detail-box">
                     <span>Healer</span>
+
                     <strong>
                       {selectedCharacter.healer
                         ? 'Yes'
@@ -1193,6 +1226,7 @@ function GamePage() {
                   undefined && (
                   <div className="detail-box">
                     <span>Rally Joiner</span>
+
                     <strong>
                       {selectedCharacter.rallyJoiner
                         ? 'Yes'
@@ -1204,6 +1238,7 @@ function GamePage() {
                 {selectedCharacter.type && (
                   <div className="detail-box">
                     <span>Type</span>
+
                     <strong>
                       {selectedCharacter.type}
                     </strong>
@@ -1213,6 +1248,7 @@ function GamePage() {
                 {selectedCharacter.rarity && (
                   <div className="detail-box">
                     <span>Rarity</span>
+
                     <strong>
                       {selectedCharacter.rarity}
                     </strong>
@@ -1225,8 +1261,11 @@ function GamePage() {
                     null && (
                     <div className="detail-box">
                       <span>Generation</span>
+
                       <strong>
-                        {selectedCharacter.generation}
+                        {
+                          selectedCharacter.generation
+                        }
                       </strong>
                     </div>
                   )}
@@ -1234,6 +1273,7 @@ function GamePage() {
                 {selectedCharacter.element && (
                   <div className="detail-box">
                     <span>Element</span>
+
                     <strong>
                       {selectedCharacter.element}
                     </strong>
@@ -1243,6 +1283,7 @@ function GamePage() {
                 {selectedCharacter.weapon && (
                   <div className="detail-box">
                     <span>Weapon</span>
+
                     <strong>
                       {typeof selectedCharacter.weapon ===
                       'object'
@@ -1256,6 +1297,7 @@ function GamePage() {
                 {selectedCharacter.region && (
                   <div className="detail-box">
                     <span>Region</span>
+
                     <strong>
                       {selectedCharacter.region}
                     </strong>
@@ -1265,6 +1307,7 @@ function GamePage() {
                 {selectedCharacter.version && (
                   <div className="detail-box">
                     <span>Version</span>
+
                     <strong>
                       {selectedCharacter.version}
                     </strong>
@@ -1274,8 +1317,11 @@ function GamePage() {
                 {selectedCharacter.releaseDate && (
                   <div className="detail-box">
                     <span>Release</span>
+
                     <strong>
-                      {selectedCharacter.releaseDate}
+                      {
+                        selectedCharacter.releaseDate
+                      }
                     </strong>
                   </div>
                 )}
@@ -1283,6 +1329,7 @@ function GamePage() {
                 {selectedCharacter.modelType && (
                   <div className="detail-box">
                     <span>Model</span>
+
                     <strong>
                       {selectedCharacter.modelType}
                     </strong>
@@ -1292,6 +1339,7 @@ function GamePage() {
                 {selectedCharacter.bearTrap && (
                   <div className="detail-box">
                     <span>Bear Trap</span>
+
                     <strong>
                       {selectedCharacter.bearTrap}
                     </strong>
@@ -1301,6 +1349,7 @@ function GamePage() {
                 {selectedCharacter.arena && (
                   <div className="detail-box">
                     <span>Arena</span>
+
                     <strong>
                       {selectedCharacter.arena}
                     </strong>
@@ -1336,47 +1385,74 @@ function GamePage() {
                     <>
                       <div className="hero-build-grid">
                         <div className="build-box">
-                          <span>Artifacts</span>
+                          <span>
+                            Artifacts
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.artifacts}
+                            {
+                              selectedBuildProfile.artifacts
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Main Stats</span>
+                          <span>
+                            Main Stats
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.mainStats}
+                            {
+                              selectedBuildProfile.mainStats
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Substats</span>
+                          <span>
+                            Substats
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.substats}
+                            {
+                              selectedBuildProfile.substats
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Talent Priority</span>
+                          <span>
+                            Talent Priority
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.talentPriority}
+                            {
+                              selectedBuildProfile.talentPriority
+                            }
                           </strong>
                         </div>
                       </div>
 
                       <div className="build-callout">
                         <b>Weapon</b>
+
                         <span>
-                          {selectedBuildProfile.weaponAdvice}
+                          {
+                            selectedBuildProfile.weaponAdvice
+                          }
                         </span>
                       </div>
 
                       <div className="build-callout">
                         <b>Ascension</b>
+
                         <span>
-                          {selectedBuildProfile.ascensionGem}{' '}
-                          + character-specific local, boss
-                          and enemy materials.
+                          {
+                            selectedBuildProfile.ascensionGem
+                          }{' '}
+                          + character-specific
+                          local, boss and enemy
+                          materials.
                         </span>
                       </div>
                     </>
@@ -1384,21 +1460,34 @@ function GamePage() {
                     <>
                       <div className="hero-build-grid">
                         <div className="build-box">
-                          <span>Formation</span>
+                          <span>
+                            Formation
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.formation}
+                            {
+                              selectedBuildProfile.formation
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Exclusive Gear</span>
+                          <span>
+                            Exclusive Gear
+                          </span>
+
                           <strong>
-                            {selectedBuildProfile.exclusiveGear}
+                            {
+                              selectedBuildProfile.exclusiveGear
+                            }
                           </strong>
                         </div>
 
                         <div className="build-box">
-                          <span>Class</span>
+                          <span>
+                            Class
+                          </span>
+
                           <strong>
                             {selectedCharacter.troopType ||
                               'Infantry / Lancer / Marksman'}
@@ -1406,7 +1495,10 @@ function GamePage() {
                         </div>
 
                         <div className="build-box">
-                          <span>Best For</span>
+                          <span>
+                            Best For
+                          </span>
+
                           <strong>
                             {selectedCharacter.bestFor ||
                               'General combat'}
@@ -1415,9 +1507,14 @@ function GamePage() {
                       </div>
 
                       <div className="build-callout">
-                        <b>Skill Priority</b>
+                        <b>
+                          Skill Priority
+                        </b>
+
                         <span>
-                          {selectedBuildProfile.skillPriority}
+                          {
+                            selectedBuildProfile.skillPriority
+                          }
                         </span>
                       </div>
                     </>
@@ -1428,20 +1525,29 @@ function GamePage() {
               {selectedCharacter.synergy && (
                 <section className="modal-section modal-advice-section">
                   <h3>Team Synergy</h3>
-                  <p>{selectedCharacter.synergy}</p>
+
+                  <p>
+                    {selectedCharacter.synergy}
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.notes && (
                 <section className="modal-section modal-advice-section">
                   <h3>GameNexa Notes</h3>
-                  <p>{selectedCharacter.notes}</p>
+
+                  <p>
+                    {selectedCharacter.notes}
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.skills &&
-                Array.isArray(selectedCharacter.skills) &&
-                selectedCharacter.skills.length > 0 && (
+                Array.isArray(
+                  selectedCharacter.skills
+                ) &&
+                selectedCharacter.skills.length >
+                  0 && (
                   <section className="modal-section">
                     <h3>Skills</h3>
 
@@ -1470,12 +1576,16 @@ function GamePage() {
                             <div>
                               <h4>
                                 {skill.name ||
-                                  `Skill ${index + 1}`}
+                                  `Skill ${
+                                    index + 1
+                                  }`}
                               </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1553,11 +1663,15 @@ function GamePage() {
                             )}
 
                             <div>
-                              <h4>{skill.name}</h4>
+                              <h4>
+                                {skill.name}
+                              </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1590,7 +1704,8 @@ function GamePage() {
                 ) && (
                   <section className="modal-section">
                     <h3>
-                      {selectedCharacter.weapon.name ||
+                      {selectedCharacter.weapon
+                        .name ||
                         'Weapon'}
                     </h3>
 
@@ -1617,11 +1732,15 @@ function GamePage() {
                             )}
 
                             <div>
-                              <h4>{skill.name}</h4>
+                              <h4>
+                                {skill.name}
+                              </h4>
 
                               {skill.description && (
                                 <p>
-                                  {skill.description}
+                                  {
+                                    skill.description
+                                  }
                                 </p>
                               )}
 
@@ -1649,14 +1768,22 @@ function GamePage() {
               {selectedCharacter.howToGet && (
                 <section className="modal-section">
                   <h3>How to Get</h3>
-                  <p>{selectedCharacter.howToGet}</p>
+
+                  <p>
+                    {
+                      selectedCharacter.howToGet
+                    }
+                  </p>
                 </section>
               )}
 
               {selectedCharacter.notes && (
                 <section className="modal-section">
                   <h3>Notes</h3>
-                  <p>{selectedCharacter.notes}</p>
+
+                  <p>
+                    {selectedCharacter.notes}
+                  </p>
                 </section>
               )}
             </div>
