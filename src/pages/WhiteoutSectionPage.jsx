@@ -21,51 +21,22 @@ const ICONS = {
   guide: String.fromCodePoint(0x1f4da),
   arrow: String.fromCodePoint(0x2192),
   close: String.fromCodePoint(0x2715),
+  battle: String.fromCodePoint(0x2694, 0xfe0f),
+  mountain: String.fromCodePoint(0x26f0, 0xfe0f),
+  expand: String.fromCodePoint(0x26f6, 0xfe0f),
 }
 
 const STATES = ['Generic', '4496', '4142', '5000', '5001']
 
 const MAP_TYPES = [
-  {
-    id: 'all',
-    name: 'All',
-    icon: ICONS.map,
-  },
-  {
-    id: 'fortress',
-    name: 'Fortresses',
-    icon: ICONS.fortress,
-  },
-  {
-    id: 'stronghold',
-    name: 'Strongholds',
-    icon: ICONS.stronghold,
-  },
-  {
-    id: 'facility',
-    name: 'Facilities',
-    icon: ICONS.facility,
-  },
-  {
-    id: 'castle',
-    name: 'Sunfire Castle',
-    icon: ICONS.castle,
-  },
-  {
-    id: 'resource',
-    name: 'Resources',
-    icon: ICONS.resource,
-  },
-  {
-    id: 'territory',
-    name: 'Alliance Territory',
-    icon: ICONS.territory,
-  },
-  {
-    id: 'event',
-    name: 'Events',
-    icon: ICONS.event,
-  },
+  { id: 'all', name: 'All', icon: ICONS.map },
+  { id: 'fortress', name: 'Fortresses', icon: ICONS.fortress },
+  { id: 'stronghold', name: 'Strongholds', icon: ICONS.stronghold },
+  { id: 'facility', name: 'Facilities', icon: ICONS.facility },
+  { id: 'castle', name: 'Sunfire Castle', icon: ICONS.castle },
+  { id: 'resource', name: 'Resources', icon: ICONS.resource },
+  { id: 'territory', name: 'Alliance Territory', icon: ICONS.territory },
+  { id: 'event', name: 'Events', icon: ICONS.event },
 ]
 
 const MAP_LOCATIONS = [
@@ -96,8 +67,7 @@ const MAP_LOCATIONS = [
     short: 'F2',
     x: 76,
     y: 26,
-    description:
-      'Northern strategic fortress position.',
+    description: 'Northern strategic fortress position.',
   },
   {
     id: 'fortress-03',
@@ -106,8 +76,7 @@ const MAP_LOCATIONS = [
     short: 'F3',
     x: 23,
     y: 72,
-    description:
-      'Southern strategic fortress position.',
+    description: 'Southern strategic fortress position.',
   },
   {
     id: 'fortress-04',
@@ -116,10 +85,8 @@ const MAP_LOCATIONS = [
     short: 'F4',
     x: 77,
     y: 72,
-    description:
-      'Southern strategic fortress position.',
+    description: 'Southern strategic fortress position.',
   },
-
   {
     id: 'stronghold-01',
     type: 'stronghold',
@@ -137,8 +104,7 @@ const MAP_LOCATIONS = [
     short: 'S2',
     x: 62,
     y: 25,
-    description:
-      'Stronghold location in the northern sector.',
+    description: 'Stronghold location in the northern sector.',
   },
   {
     id: 'stronghold-03',
@@ -147,8 +113,7 @@ const MAP_LOCATIONS = [
     short: 'S3',
     x: 29,
     y: 49,
-    description:
-      'Central-west stronghold position.',
+    description: 'Central-west stronghold position.',
   },
   {
     id: 'stronghold-04',
@@ -157,8 +122,7 @@ const MAP_LOCATIONS = [
     short: 'S4',
     x: 71,
     y: 49,
-    description:
-      'Central-east stronghold position.',
+    description: 'Central-east stronghold position.',
   },
   {
     id: 'stronghold-05',
@@ -167,8 +131,7 @@ const MAP_LOCATIONS = [
     short: 'S5',
     x: 38,
     y: 73,
-    description:
-      'Southern stronghold position.',
+    description: 'Southern stronghold position.',
   },
   {
     id: 'stronghold-06',
@@ -177,10 +140,8 @@ const MAP_LOCATIONS = [
     short: 'S6',
     x: 62,
     y: 73,
-    description:
-      'Southern stronghold position.',
+    description: 'Southern stronghold position.',
   },
-
   {
     id: 'facility-01',
     type: 'facility',
@@ -198,8 +159,7 @@ const MAP_LOCATIONS = [
     short: 'B',
     x: 83,
     y: 45,
-    description:
-      'Strategic facility on the eastern side of the map.',
+    description: 'Strategic facility on the eastern side of the map.',
   },
   {
     id: 'facility-03',
@@ -208,8 +168,7 @@ const MAP_LOCATIONS = [
     short: 'C',
     x: 45,
     y: 17,
-    description:
-      'Northern facility position.',
+    description: 'Northern facility position.',
   },
   {
     id: 'facility-04',
@@ -218,10 +177,8 @@ const MAP_LOCATIONS = [
     short: 'D',
     x: 55,
     y: 83,
-    description:
-      'Southern facility position.',
+    description: 'Southern facility position.',
   },
-
   {
     id: 'resource-01',
     type: 'resource',
@@ -239,8 +196,7 @@ const MAP_LOCATIONS = [
     short: 'R',
     x: 10,
     y: 50,
-    description:
-      'Western resource area.',
+    description: 'Western resource area.',
   },
   {
     id: 'resource-03',
@@ -249,8 +205,7 @@ const MAP_LOCATIONS = [
     short: 'R',
     x: 90,
     y: 50,
-    description:
-      'Eastern resource area.',
+    description: 'Eastern resource area.',
   },
   {
     id: 'resource-04',
@@ -259,10 +214,8 @@ const MAP_LOCATIONS = [
     short: 'R',
     x: 50,
     y: 89,
-    description:
-      'Southern resource area.',
+    description: 'Southern resource area.',
   },
-
   {
     id: 'territory-01',
     type: 'territory',
@@ -283,7 +236,6 @@ const MAP_LOCATIONS = [
     description:
       'Eastern alliance territory planning zone.',
   },
-
   {
     id: 'event-01',
     type: 'event',
@@ -337,6 +289,85 @@ const TYPE_META = {
   },
 }
 
+/*
+  These are intentionally extension-free definitions.
+
+  The image loader below automatically tries:
+  .jpg
+  .jpeg
+  .png
+  .webp
+
+  So your files can be:
+  /public/maps/foundry-battle-4k.jpg
+  /public/maps/foundry-battle-4k.png
+  etc.
+*/
+
+const BATTLE_MAPS = [
+  {
+    id: 'foundry-battle',
+    title: 'Foundry Battle',
+    subtitle: 'Foundry Battle 4K Map',
+    icon: ICONS.battle,
+    baseName: 'foundry-battle-4k',
+    description:
+      'High-resolution Foundry Battle map for studying lanes, positions and planning alliance coordination.',
+  },
+  {
+    id: 'canyon-clash',
+    title: 'Canyon Clash',
+    subtitle: 'Canyon Clash 4K Map',
+    icon: ICONS.mountain,
+    baseName: 'canyon-clash-4k',
+    description:
+      'High-resolution Canyon Clash map for understanding routes, positioning and coordinated attacks.',
+  },
+]
+
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+
+function ImageWithFallback({
+  baseName,
+  alt,
+  className = '',
+  onClick,
+}) {
+  const [extensionIndex, setExtensionIndex] = useState(0)
+  const [failed, setFailed] = useState(false)
+
+  const src = `/maps/${baseName}.${IMAGE_EXTENSIONS[extensionIndex]}`
+
+  if (failed) {
+    return (
+      <div className={`wo-image-missing ${className}`}>
+        <div>{ICONS.map}</div>
+        <strong>Map image not found</strong>
+        <span>
+          Expected: <b>{baseName}.jpg / .png / .webp</b>
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onClick={onClick}
+      onError={() => {
+        if (extensionIndex < IMAGE_EXTENSIONS.length - 1) {
+          setExtensionIndex((value) => value + 1)
+        } else {
+          setFailed(true)
+        }
+      }}
+    />
+  )
+}
+
 function SectionHero({ title, description, icon }) {
   return (
     <div className="wo-section-hero">
@@ -388,7 +419,7 @@ function MapMarker({ item, selected, onClick }) {
   )
 }
 
-function BattleMap() {
+function BattleMapPlanner() {
   const [state, setState] = useState('Generic')
   const [mapType, setMapType] = useState('all')
   const [search, setSearch] = useState('')
@@ -520,12 +551,8 @@ function BattleMap() {
             <div className="wo-map-snow-layer" />
 
             <div className="wo-map-grid">
-              {Array.from({ length: 10 }).map((_, index) => (
-                <span key={`v-${index}`} />
-              ))}
-
-              {Array.from({ length: 10 }).map((_, index) => (
-                <span key={`h-${index}`} />
+              {Array.from({ length: 20 }).map((_, index) => (
+                <span key={index} />
               ))}
             </div>
 
@@ -626,7 +653,9 @@ function BattleMap() {
                   <strong>Map Legend</strong>
                 </div>
 
-                <small>{state === 'Generic' ? 'Generic' : `State ${state}`}</small>
+                <small>
+                  {state === 'Generic' ? 'Generic' : `State ${state}`}
+                </small>
               </div>
 
               <div className="wo-legend-list">
@@ -639,7 +668,9 @@ function BattleMap() {
                       setSelected(null)
                     }}
                   >
-                    <span className={`wo-legend-icon wo-marker-${item.id}`}>
+                    <span
+                      className={`wo-legend-icon wo-marker-${item.id}`}
+                    >
                       {item.icon}
                     </span>
 
@@ -662,6 +693,121 @@ function BattleMap() {
         </aside>
       </div>
     </>
+  )
+}
+
+function BattleMapImages() {
+  const [activeMap, setActiveMap] = useState('foundry-battle')
+  const [fullscreen, setFullscreen] = useState(false)
+
+  const selectedMap =
+    BATTLE_MAPS.find((item) => item.id === activeMap) ||
+    BATTLE_MAPS[0]
+
+  return (
+    <section className="wo-real-maps">
+      <div className="wo-section-heading">
+        <div>
+          <span className="wo-eyebrow">BATTLE MAP DATABASE</span>
+          <h2>{ICONS.map} Battle Event Maps</h2>
+          <p>
+            High-resolution battle maps stored directly in the GameNexa
+            project.
+          </p>
+        </div>
+      </div>
+
+      <div className="wo-battle-map-tabs">
+        {BATTLE_MAPS.map((map) => (
+          <button
+            type="button"
+            key={map.id}
+            className={activeMap === map.id ? 'active' : ''}
+            onClick={() => {
+              setActiveMap(map.id)
+              setFullscreen(false)
+            }}
+          >
+            <span>{map.icon}</span>
+
+            <span>
+              <strong>{map.title}</strong>
+              <small>{map.subtitle}</small>
+            </span>
+
+            <b>{ICONS.arrow}</b>
+          </button>
+        ))}
+      </div>
+
+      <div className="wo-real-map-card">
+        <div className="wo-real-map-heading">
+          <div>
+            <span>{selectedMap.icon}</span>
+
+            <div>
+              <strong>{selectedMap.title}</strong>
+              <small>{selectedMap.description}</small>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setFullscreen(true)}
+          >
+            {ICONS.expand} View Full Map
+          </button>
+        </div>
+
+        <div className="wo-real-map-image-wrap">
+          <ImageWithFallback
+            baseName={selectedMap.baseName}
+            alt={`${selectedMap.title} 4K map`}
+            className="wo-real-map-image"
+            onClick={() => setFullscreen(true)}
+          />
+
+          <div className="wo-real-map-overlay">
+            <span>{selectedMap.subtitle}</span>
+          </div>
+        </div>
+      </div>
+
+      {fullscreen && (
+        <div
+          className="wo-image-modal"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setFullscreen(false)}
+        >
+          <button
+            type="button"
+            className="wo-image-modal-close"
+            onClick={() => setFullscreen(false)}
+            aria-label="Close full map"
+          >
+            {ICONS.close}
+          </button>
+
+          <div
+            className="wo-image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ImageWithFallback
+              baseName={selectedMap.baseName}
+              alt={`${selectedMap.title} full map`}
+              className="wo-full-map-image"
+            />
+
+            <div className="wo-full-map-title">
+              <span>{selectedMap.icon}</span>
+              <strong>{selectedMap.title}</strong>
+              <small>4K Battle Map</small>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -695,7 +841,7 @@ function MapStats() {
 
       <div>
         <strong>2</strong>
-        <span>Event Areas</span>
+        <span>Battle Events</span>
       </div>
     </div>
   )
@@ -720,7 +866,10 @@ function HeroesPreview() {
           </p>
         </div>
 
-        <Link to="/game/whiteout-survival/heroes" className="wo-view-all">
+        <Link
+          to="/game/whiteout-survival/heroes"
+          className="wo-view-all"
+        >
           View Heroes {ICONS.arrow}
         </Link>
       </div>
@@ -765,7 +914,6 @@ function HeroesPreview() {
 
 export default function WhiteoutSectionPage() {
   const { section } = useParams()
-
   const currentSection = String(section || '').toLowerCase()
 
   const isMaps =
@@ -778,7 +926,15 @@ export default function WhiteoutSectionPage() {
         <style>{PAGE_STYLES}</style>
 
         <SectionHero
-          icon={ICONS.map}
+          icon={
+            currentSection === 'heroes'
+              ? ICONS.hero
+              : currentSection === 'calculators'
+                ? ICONS.calculator
+                : currentSection === 'planner'
+                  ? ICONS.planner
+                  : ICONS.map
+          }
           title={
             currentSection === 'heroes'
               ? 'Whiteout Survival Heroes'
@@ -796,7 +952,7 @@ export default function WhiteoutSectionPage() {
             to="/game/whiteout-survival/battle-maps"
             icon={ICONS.map}
             title="Battle Maps"
-            description="Generic and State map planning."
+            description="Generic, State and battle event maps."
           />
 
           <QuickCard
@@ -831,11 +987,13 @@ export default function WhiteoutSectionPage() {
       <SectionHero
         icon={ICONS.map}
         title="Whiteout Survival Battle Maps"
-        description="Explore Generic and State maps for Fortresses, Strongholds, Facilities, Sunfire Castle, Resources, Alliance Territory and Events."
+        description="Explore Generic and State maps plus high-resolution Foundry Battle and Canyon Clash maps."
       />
 
       <div className="wo-breadcrumb">
-        <Link to="/game/whiteout-survival/">Whiteout Survival</Link>
+        <Link to="/game/whiteout-survival/">
+          Whiteout Survival
+        </Link>
         <span>{ICONS.arrow}</span>
         <strong>Battle Maps</strong>
       </div>
@@ -844,23 +1002,26 @@ export default function WhiteoutSectionPage() {
         <div>
           <span className="wo-eyebrow">STATE WARFARE TOOL</span>
           <h2>Plan Your State Map</h2>
+
           <p>
             Select a State, filter strategic locations and click markers to
-            inspect important map objectives. The Generic map can be used for
-            alliance planning before adding state-specific coordinates.
+            inspect important map objectives. Below the tactical planner,
+            you'll also find the original high-resolution battle maps.
           </p>
         </div>
 
         <div className="wo-intro-badge">
           <span>{ICONS.snow}</span>
           <strong>TACTICAL MAP</strong>
-          <small>Generic + State Maps</small>
+          <small>Generic + State + Battle Maps</small>
         </div>
       </div>
 
       <MapStats />
 
-      <BattleMap />
+      <BattleMapPlanner />
+
+      <BattleMapImages />
 
       <section className="wo-tools-section">
         <div className="wo-section-heading">
@@ -911,12 +1072,13 @@ export default function WhiteoutSectionPage() {
         <div className="wo-note-icon">{ICONS.map}</div>
 
         <div>
-          <strong>About the Battle Map</strong>
+          <strong>About the Battle Maps</strong>
+
           <p>
-            The current map provides a clean planning layer for GameNexa.
-            Generic coordinates are intentionally separated from State
-            selection so state-specific map data can be expanded later without
-            changing the interface.
+            GameNexa combines strategic planning tools with high-resolution
+            battle event maps. Use the generic and State map for planning, and
+            the Foundry Battle or Canyon Clash maps when preparing for those
+            specific events.
           </p>
         </div>
       </section>
@@ -973,7 +1135,7 @@ const PAGE_STYLES = `
 }
 
 .wo-section-hero p {
-  max-width: 850px;
+  max-width: 900px;
   margin: 0;
   color: #a9bac6;
   line-height: 1.65;
@@ -1010,14 +1172,14 @@ const PAGE_STYLES = `
 }
 
 .wo-map-intro p {
-  max-width: 850px;
+  max-width: 900px;
   margin: 0;
   color: #9fb1bd;
   line-height: 1.65;
 }
 
 .wo-intro-badge {
-  min-width: 180px;
+  min-width: 200px;
   align-self: center;
   display: flex;
   flex-direction: column;
@@ -1314,7 +1476,6 @@ const PAGE_STYLES = `
   width: 85%;
   left: 7%;
   top: 50%;
-  transform: rotate(0deg);
 }
 
 .road-b {
@@ -1695,6 +1856,281 @@ const PAGE_STYLES = `
   cursor: pointer;
 }
 
+/* ============================================================
+   REAL 4K BATTLE MAPS
+   ============================================================ */
+
+.wo-real-maps {
+  margin-top: 42px;
+}
+
+.wo-battle-map-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wo-battle-map-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid rgba(150,205,235,.12);
+  border-radius: 15px;
+  background: rgba(11,27,39,.72);
+  color: #94aab5;
+  text-align: left;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.wo-battle-map-tabs button:hover,
+.wo-battle-map-tabs button.active {
+  border-color: rgba(113,195,232,.38);
+  background: rgba(44,103,132,.16);
+  color: #eaf7fc;
+}
+
+.wo-battle-map-tabs button > span:first-child {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(107,184,218,.1);
+  font-size: 21px;
+}
+
+.wo-battle-map-tabs button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.wo-battle-map-tabs strong {
+  display: block;
+  font-size: 14px;
+}
+
+.wo-battle-map-tabs small {
+  display: block;
+  margin-top: 3px;
+  color: #718691;
+  font-size: 10px;
+}
+
+.wo-battle-map-tabs b {
+  color: #6d8b99;
+}
+
+.wo-real-map-card {
+  overflow: hidden;
+  border: 1px solid rgba(150,205,235,.14);
+  border-radius: 20px;
+  background: #091721;
+  box-shadow: 0 18px 45px rgba(0,0,0,.2);
+}
+
+.wo-real-map-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.wo-real-map-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wo-real-map-heading > div > span {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(108,184,218,.1);
+  font-size: 21px;
+}
+
+.wo-real-map-heading strong {
+  display: block;
+  font-size: 15px;
+}
+
+.wo-real-map-heading small {
+  display: block;
+  margin-top: 4px;
+  color: #728893;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.wo-real-map-heading button {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid rgba(128,197,229,.18);
+  border-radius: 10px;
+  background: rgba(82,155,190,.08);
+  color: #9bcde3;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wo-real-map-image-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #050d12;
+}
+
+.wo-real-map-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 850px;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+
+.wo-real-map-overlay {
+  position: absolute;
+  left: 15px;
+  bottom: 15px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(4,12,18,.82);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #d5e5eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.wo-image-missing {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 30px;
+  text-align: center;
+  color: #788d98;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,.025),
+      rgba(255,255,255,.025) 10px,
+      transparent 10px,
+      transparent 20px
+    );
+}
+
+.wo-image-missing div {
+  font-size: 40px;
+  opacity: .65;
+}
+
+.wo-image-missing strong {
+  color: #c9dbe2;
+}
+
+.wo-image-missing span {
+  font-size: 11px;
+}
+
+.wo-image-missing b {
+  color: #91c8df;
+}
+
+/* Fullscreen image */
+
+.wo-image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+  background: rgba(2,8,12,.94);
+  backdrop-filter: blur(8px);
+}
+
+.wo-image-modal-content {
+  position: relative;
+  width: min(1500px, 96vw);
+  max-height: 94vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wo-full-map-image {
+  display: block;
+  max-width: 100%;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 80px rgba(0,0,0,.6);
+}
+
+.wo-image-modal-close {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 10001;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 12px;
+  background: rgba(12,24,32,.9);
+  color: white;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.wo-full-map-title {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 11px;
+  background: rgba(8,19,27,.9);
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+.wo-full-map-title span {
+  font-size: 20px;
+}
+
+.wo-full-map-title strong {
+  font-size: 13px;
+}
+
+.wo-full-map-title small {
+  color: #8297a2;
+  font-size: 10px;
+}
+
+/* ============================================================
+   OTHER SECTIONS
+   ============================================================ */
+
 .wo-tools-section,
 .wo-bottom-section {
   margin-top: 35px;
@@ -1893,10 +2329,6 @@ const PAGE_STYLES = `
   .wo-map-stats {
     grid-template-columns: repeat(3, 1fr);
   }
-
-  .wo-fallback-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 @media (max-width: 700px) {
@@ -1978,6 +2410,23 @@ const PAGE_STYLES = `
     flex-direction: column;
   }
 
+  .wo-battle-map-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .wo-real-map-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wo-real-map-heading button {
+    width: 100%;
+  }
+
+  .wo-real-map-image {
+    max-height: none;
+  }
+
   .wo-tools-grid {
     grid-template-columns: 1fr;
   }
@@ -1988,6 +2437,15 @@ const PAGE_STYLES = `
 
   .wo-fallback-grid {
     grid-template-columns: 1fr;
+  }
+
+  .wo-image-modal {
+    padding: 10px;
+  }
+
+  .wo-full-map-title {
+    left: 10px;
+    bottom: 10px;
   }
 }
 `
