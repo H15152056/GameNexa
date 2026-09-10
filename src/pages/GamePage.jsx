@@ -1014,7 +1014,7 @@ function GamePage() {
           gameSlug={game.slug}
         />
 
-        {(isGenshin || isWhiteout) && (
+        {isGenshin && (
           <section className="gnx-character-database">
             <div className="gnx-character-heading">
               <div>
