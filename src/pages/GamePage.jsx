@@ -198,7 +198,6 @@ const WHITEOUT_MODULES = [
   ['buildings', '🏗️', 'Buildings', 'Furnace, Embassy, Command Center, Infirmary and progression priorities.'],
   ['research', '🔬', 'Research', 'Economy, Battle and March research priorities and progression notes.'],
   ['troops', '🪖', 'Troops', 'Infantry, Lancer and Marksman roles, formations and training priorities.'],
-  ['guides', '📚', 'Guides', 'Practical Whiteout Survival guides for progression, combat and alliance play.'],
   ['calculators', '🧮', 'Calculators', 'Resource totals, speedup conversion and basic troop power planning.'],
   ['planner', '🧭', 'Alliance Planner', 'Plan objectives, rally points, territory moves and event assignments.'],
 ]
@@ -257,11 +256,6 @@ function WhiteoutTools() {
       text: 'Understand the three troop classes and how they fit into formations.',
       items: ['Infantry — frontline / tank', 'Lancer — mobile damage', 'Marksman — ranged DPS'],
     },
-    guides: {
-      title: 'Guides',
-      text: 'Practical guides connected to the existing GameNexa guide system.',
-      items: ['Furnace Upgrade Guide', 'Bear Trap Guide', 'Alliance Territory Guide', 'Foundry Battle Guide', 'Canyon Clash Guide'],
-    },
     planner: {
       title: 'Alliance Planner',
       text: 'Planning workspace for alliance officers and event coordination.',
@@ -314,8 +308,8 @@ function WhiteoutTools() {
 
       <div className="wnx-head">
         <div className="wnx-kicker">WHITEOUT SURVIVAL HUB</div>
-        <h2>Complete Whiteout Survival Tools</h2>
-        <p>Maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops, guides, calculators and planning tools — all inside GameNexa.</p>
+        <h2>Whiteout Survival Hub</h2>
+        <p>Battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops, calculators and alliance planning — all in one place.</p>
       </div>
 
       <div className="wnx-tabs">
@@ -324,7 +318,6 @@ function WhiteoutTools() {
         {WHITEOUT_MODULES.map(([id, icon, title]) => (
           <button key={id} className={`wnx-tab ${active === id ? 'active' : ''}`} onClick={() => setActive(id)}>{icon} {title}</button>
         ))}
-        <button className={`wnx-tab ${active === 'calculators' ? 'active' : ''}`} onClick={() => setActive('calculators')}>🧮 Calculators</button>
       </div>
 
       <div className="wnx-body">
@@ -357,7 +350,7 @@ function WhiteoutTools() {
             <div className="wnx-detail">
               <div className="wnx-kicker">BATTLE MAPS</div>
               <h3>{map.title}</h3>
-              <p>Full map image viewer for Whiteout Survival battle planning. The GameNexa Whiteout Survival map section contains only these two battle maps.</p>
+              <p>Full map image viewer for Whiteout Survival battle planning. GameNexa currently provides only the Foundry Battle Map and Canyon Clash Battle Map here.</p>
               <div className="wnx-list">
                 <div>⚔️ Alliance planning</div><div>📍 Objective reference</div><div>🛡️ Defense planning</div><div>🚩 Rally coordination</div>
               </div>
@@ -940,8 +933,10 @@ function GamePage() {
           </section>
         )}
 
+        {isWhiteout && <WhiteoutTools />}
+
         {/* DATABASE */}
-        <section className="database-section">
+        <section className={`database-section ${isWhiteout ? 'whiteout-characters-section' : ''}`}>
           <div className="section-heading">
             <div>
               <span className="section-kicker">
@@ -957,8 +952,9 @@ function GamePage() {
               </h2>
 
               <p>
-                Browse, search and explore the
-                complete character database.
+                {isWhiteout
+                  ? 'Browse, search and explore the complete Whiteout Survival hero database.'
+                  : 'Browse, search and explore the complete character database.'}
               </p>
             </div>
 
@@ -1421,8 +1417,6 @@ function GamePage() {
             </div>
           </section>
         )}
-
-        {isWhiteout && <WhiteoutTools />}
 
         {/* WHITEOUT STRATEGY */}
         {isWhiteout && (
