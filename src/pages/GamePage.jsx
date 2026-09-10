@@ -1,3 +1,4 @@
+import CMSLiveContent from '../components/CMSLiveContent'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { gamesData } from '../data/gamesData'
@@ -619,6 +620,8 @@ function GamePage() {
 
         {/* WHITEOUT SURVIVAL HUB */}
         {isWhiteout && <WhiteoutHub />}
+
+        <CMSLiveContent gameSlug={game.slug} />
 
         {/* DATABASE — Whiteout Survival Heroes now renders after the
             Whiteout Survival Hub, as a separate Characters section */}
