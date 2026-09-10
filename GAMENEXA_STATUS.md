@@ -11,6 +11,79 @@ backward-compatible way (old guides keep working exactly as before).
 
 ---
 
+## 🆕 Latest update: hub redesign, section order, per-game files, SEO
+
+This pass addressed your latest requests directly:
+
+**1. Horizontal pill tab bar removed** (the row that read "Overview ·
+🗺️ Battle Maps · 🏭 Facilities · ...") — it's gone from the Whiteout
+Survival Hub. Navigation now works through the Overview card grid
+(click a card to open that section) plus a "← Back to Overview" link
+that appears once you're inside a section. No pill-row markup or CSS
+remains anywhere in the codebase.
+
+**2. "Whiteout Survival Heroes" now sits before Battle Maps** — the
+hero database (search, filters, hero grid) now renders as its own
+section directly above the whole "Whiteout Survival Hub" widget, so
+it comes before Battle Maps as requested. This was a pure reordering
+of existing, already-working code — nothing in the hero database
+itself was rewritten.
+
+**3. Per-game code split into its own files** — so adding or removing
+a game later is easy without touching unrelated code:
+- `src/games/whiteout/WhiteoutHub.jsx` — the entire Whiteout Survival
+  Hub widget (maps, facilities, fortresses, strongholds, resources,
+  alliance territory, events, buildings, research, troops,
+  calculators, alliance planner). ~330 lines pulled out of
+  `GamePage.jsx`.
+- `src/games/whiteout/whiteoutBuild.js` — the Whiteout hero
+  role/skill-priority helper.
+- `src/games/genshin/genshinBuild.js` — the Genshin artifact/stat/
+  talent build-profile helper.
+
+`GamePage.jsx` now just imports these. Game character data was
+already split per game before this pass (`src/data/whiteoutHeroes.js`,
+`src/data/genshinCharacters.js`, `src/data/gameCharacters.js`, wired
+together in `src/data/gamesData.js`), so between that and the new
+`src/games/<game>/` folders, adding a third game means: add a data
+file, add a `src/games/<newGame>/` folder if it needs custom UI (copy
+the Whiteout folder's pattern), and register it in `gamesData.js`.
+Removing a game means deleting its data file, its `src/games/<game>/`
+folder if present, and its entry in `gamesData.js`.
+
+**4. SEO pass on the game pages** — titles/descriptions for the
+Whiteout Survival and Genshin Impact game pages are now specific and
+keyword-relevant (mentioning heroes, tier list, battle maps, hub,
+builds, etc.) instead of a generic template, in both:
+- the runtime `<SEO>` component in `GamePage.jsx` (what search
+  engines/crawlers see when they execute JS), and
+- `gamesData.js`'s `description` field, which `scripts/generate-seo.js`
+  uses to pre-render static `<title>`/meta tags per route at build
+  time (this script wasn't touched — it already reads live from
+  `gamesData.js`, so it picks up the new description automatically).
+
+**Not done in this pass, still open:**
+- `dist/` in your earlier zip was a stale pre-built output from before
+  these changes — it's excluded from this zip. Run `npm run build`
+  (which also runs `scripts/generate-seo.js`) to regenerate it before
+  deploying.
+- I don't have network access in this environment, so I could not run
+  `npm install` / `npm run build` / `npm run lint` to verify the build
+  end-to-end. I did check every edited file for balanced
+  braces/brackets/parens and ran `node --check` on the new plain-JS
+  helper files with no errors, but please run a real build locally
+  before deploying, same as always.
+- Copyright/licensing audit of real character images, Search Console
+  submission, custom domain switch, and monetization activation are
+  still open from the original list (see below) — all need your
+  manual action.
+- Two old backup files sitting in the repo you gave me
+  (`src/pages/AdminPage.jsx.backup`, `src/data/genshinCharacters.js.backup-webp`)
+  were left untouched — delete them yourself if they're no longer
+  needed.
+
+---
+
 ## 🔄 Update: your own AdminPage.jsx / cmsContent.js improvements merged in
 
 After the first pass, you improved `src/pages/AdminPage.jsx` and

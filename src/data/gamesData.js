@@ -198,7 +198,7 @@ export const gamesData = {
     name: 'Whiteout Survival',
     category: 'Strategy Survival',
     description:
-      'Whiteout Survival heroes, team strategy and practical guides.',
+      'Whiteout Survival hero database, tier list and hub: battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research and troop guides.',
     icon: '❄️',
     featured: true,
 
