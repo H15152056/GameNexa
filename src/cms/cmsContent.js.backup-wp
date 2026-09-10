@@ -32,60 +32,70 @@ export function cmsKey(
   return `guide.${slug}.${guideIndex}.content.${sectionIndex}.paragraph.${paragraphIndex}`
 }
 
-export function cmsHeadingKey(slug, guideIndex, sectionIndex) {
+export function cmsHeadingKey(
+  slug,
+  guideIndex,
+  sectionIndex
+) {
   return `guide.${slug}.${guideIndex}.content.${sectionIndex}.heading`
 }
 
-export function cmsTitleKey(slug, guideIndex) {
+export function cmsTitleKey(
+  slug,
+  guideIndex
+) {
   return `guide.${slug}.${guideIndex}.title`
 }
 
-export function cmsDescKey(slug, guideIndex) {
+export function cmsDescKey(
+  slug,
+  guideIndex
+) {
   return `guide.${slug}.${guideIndex}.desc`
 }
 
-export function cmsStructureKey(slug, guideIndex) {
+export function cmsStructureKey(
+  slug,
+  guideIndex
+) {
   return `guide.${slug}.${guideIndex}.structure`
 }
+
+/*
+ * ============================================================
+ * DELETED BUILT-IN GUIDES
+ * ============================================================
+ *
+ * Original/static guides can now be permanently hidden through
+ * the CMS without changing gamesData.js.
+ *
+ * Example:
+ *
+ * game.genshin.deletedGuides
+ *
+ * Value:
+ * ["0", "2"]
+ *
+ * The numbers are the ORIGINAL guide indexes from gamesData.
+ */
 
 export function cmsDeletedGuidesKey(slug) {
   return `game.${slug}.deletedGuides`
 }
 
-export function cmsGuidesKey(slug) {
-  return `game.${slug}.cmsGuides`
-}
-
 /*
- * Generic WordPress-style CMS collections.
+ * ============================================================
+ * NEW GUIDE SYSTEM
+ * ============================================================
  *
- * Example:
+ * Each game can have CMS-created guides stored as:
  *
- * cms.collection.genshin.characters
- * cms.collection.genshin.builds
- * cms.collection.genshin.weapons
- * cms.collection.whiteout-survival.heroes
- * cms.collection.whiteout-survival.facilities
+ * game.genshin.cmsGuides
+ * game.whiteout-survival.cmsGuides
  */
 
-export function cmsCollectionKey(gameSlug, collection) {
-  return `cms.collection.${gameSlug}.${collection}`
-}
-
-export function parseCMSCollection(contentMap, gameSlug, collection) {
-  const key = cmsCollectionKey(gameSlug, collection)
-  const value = contentMap?.[key]
-
-  if (!value) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
+export function cmsGuidesKey(slug) {
+  return `game.${slug}.cmsGuides`
 }
 
 function normalizeStructure(structure) {
@@ -109,9 +119,17 @@ function normalizeStructure(structure) {
   }))
 }
 
-function getStructureOverride(contentMap, slug, guideIndex) {
-  const value =
-    contentMap[cmsStructureKey(slug, guideIndex)]
+function getStructureOverride(
+  contentMap,
+  slug,
+  guideIndex
+) {
+  const key = cmsStructureKey(
+    slug,
+    guideIndex
+  )
+
+  const value = contentMap[key]
 
   if (!value) {
     return null
@@ -130,9 +148,18 @@ function getStructureOverride(contentMap, slug, guideIndex) {
   }
 }
 
-function getDeletedBuiltInGuideIndexes(contentMap, slug) {
-  const value =
-    contentMap[cmsDeletedGuidesKey(slug)]
+/*
+ * ============================================================
+ * GET DELETED BUILT-IN GUIDE INDEXES
+ * ============================================================
+ */
+
+function getDeletedBuiltInGuideIndexes(
+  contentMap,
+  slug
+) {
+  const key = cmsDeletedGuidesKey(slug)
+  const value = contentMap[key]
 
   if (!value) {
     return []
@@ -153,8 +180,18 @@ function getDeletedBuiltInGuideIndexes(contentMap, slug) {
   }
 }
 
-function getCMSGuides(contentMap, slug) {
-  const value = contentMap[cmsGuidesKey(slug)]
+/*
+ * ============================================================
+ * GET CMS-CREATED GUIDES
+ * ============================================================
+ */
+
+function getCMSGuides(
+  contentMap,
+  slug
+) {
+  const key = cmsGuidesKey(slug)
+  const value = contentMap[key]
 
   if (!value) {
     return []
@@ -190,7 +227,9 @@ function getCMSGuides(contentMap, slug) {
             : '',
 
         content:
-          normalizeStructure(guide.content),
+          normalizeStructure(
+            guide.content
+          ),
 
         cmsGuideId:
           typeof guide.cmsGuideId === 'string'
@@ -202,10 +241,19 @@ function getCMSGuides(contentMap, slug) {
   }
 }
 
-export function applyCMSOverrides(gamesData, contentMap) {
+export function applyCMSOverrides(
+  gamesData,
+  contentMap
+) {
   const cloned = structuredClone(gamesData)
 
   Object.values(cloned).forEach((game) => {
+    /*
+     * ----------------------------------------------------------
+     * EXISTING / BUILT-IN GUIDES
+     * ----------------------------------------------------------
+     */
+
     const deletedGuideIndexes =
       getDeletedBuiltInGuideIndexes(
         contentMap,
@@ -214,6 +262,14 @@ export function applyCMSOverrides(gamesData, contentMap) {
 
     ;(game.guides || []).forEach(
       (guide, guideIndex) => {
+        /*
+         * Keep the ORIGINAL index attached to the guide.
+         *
+         * This is important because after deleting a guide,
+         * the visible array indexes change.
+         *
+         * CMS data must continue using the original index.
+         */
         guide.cmsBuiltInGuideIndex =
           guideIndex
 
@@ -229,12 +285,16 @@ export function applyCMSOverrides(gamesData, contentMap) {
             guideIndex
           )
 
-        if (contentMap[titleKey] !== undefined) {
+        if (
+          contentMap[titleKey] !== undefined
+        ) {
           guide.title =
             contentMap[titleKey]
         }
 
-        if (contentMap[descKey] !== undefined) {
+        if (
+          contentMap[descKey] !== undefined
+        ) {
           guide.desc =
             contentMap[descKey]
         }
@@ -253,8 +313,15 @@ export function applyCMSOverrides(gamesData, contentMap) {
           return
         }
 
+        /*
+         * Individual CMS overrides.
+         */
+
         ;(guide.content || []).forEach(
-          (section, sectionIndex) => {
+          (
+            section,
+            sectionIndex
+          ) => {
             const headingKey =
               cmsHeadingKey(
                 game.slug,
@@ -272,7 +339,10 @@ export function applyCMSOverrides(gamesData, contentMap) {
             ;(
               section.paragraphs || []
             ).forEach(
-              (paragraph, paragraphIndex) => {
+              (
+                paragraph,
+                paragraphIndex
+              ) => {
                 const key =
                   cmsKey(
                     game.slug,
@@ -296,7 +366,19 @@ export function applyCMSOverrides(gamesData, contentMap) {
       }
     )
 
-    if (deletedGuideIndexes.length > 0) {
+    /*
+     * Remove deleted built-in guides AFTER all CMS
+     * overrides have been applied.
+     *
+     * This means old saved title/description/content
+     * data remains safe and can be restored later if
+     * we ever add an "Restore Guide" feature.
+     */
+
+    if (
+      deletedGuideIndexes.length > 0 &&
+      Array.isArray(game.guides)
+    ) {
       game.guides =
         game.guides.filter(
           (guide) =>
@@ -305,6 +387,14 @@ export function applyCMSOverrides(gamesData, contentMap) {
             )
         )
     }
+
+    /*
+     * ----------------------------------------------------------
+     * CMS CREATED GUIDES
+     * ----------------------------------------------------------
+     *
+     * These are appended after the original guides.
+     */
 
     const cmsGuides =
       getCMSGuides(
@@ -323,7 +413,9 @@ export function applyCMSOverrides(gamesData, contentMap) {
   return cloned
 }
 
-export function useCMSGamesData(gamesData) {
+export function useCMSGamesData(
+  gamesData
+) {
   const [contentMap, setContentMap] =
     useState({})
 

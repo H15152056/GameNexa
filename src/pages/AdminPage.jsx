@@ -6,6 +6,7 @@ import './AdminPage.css'
 import { gamesData } from '../data/gamesData'
 import {
   applyCMSOverrides,
+  cmsCollectionKey,
   cmsDeletedGuidesKey,
   cmsDescKey,
   cmsGuidesKey,
@@ -15,12 +16,34 @@ import {
   cmsTitleKey,
   fetchCMSContent,
 } from '../cms/cmsContent'
+
 import {
   VIDEO_PREFIX,
   isVideoParagraph,
   getVideoUrlFromParagraph,
   toEmbedUrl,
 } from '../utils/videoEmbed'
+
+const COLLECTIONS = {
+  genshin: [
+    ['characters', 'Characters'],
+    ['builds', 'Builds'],
+    ['weapons', 'Weapons'],
+    ['artifacts', 'Artifacts'],
+    ['maps', 'Maps'],
+    ['videos', 'Videos'],
+  ],
+
+  'whiteout-survival': [
+    ['heroes', 'Heroes'],
+    ['builds', 'Builds'],
+    ['maps', 'Maps'],
+    ['facilities', 'Facilities'],
+    ['resources', 'Resources'],
+    ['beartrap', 'Bear Trap'],
+    ['videos', 'Videos'],
+  ],
+}
 
 const EMPTY_GUIDE = {
   icon: '📖',
@@ -29,7 +52,9 @@ const EMPTY_GUIDE = {
   content: [
     {
       heading: 'Introduction',
-      paragraphs: ['Write your guide content here.'],
+      paragraphs: [
+        'Write your guide content here.',
+      ],
     },
   ],
 }
@@ -53,60 +78,90 @@ function cloneGuide(guide) {
   }
 }
 
+function makeId() {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`
+}
+
 function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false)
-  const [checkingSession, setCheckingSession] = useState(true)
+  const [authenticated, setAuthenticated] =
+    useState(false)
 
-  const [password, setPassword] = useState('')
-  const [loginError, setLoginError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [checkingSession, setCheckingSession] =
+    useState(true)
 
-  const [content, setContent] = useState({})
+  const [password, setPassword] =
+    useState('')
 
-  const [selectedGame, setSelectedGame] = useState('genshin')
-  const [selectedGuide, setSelectedGuide] = useState(0)
+  const [loginError, setLoginError] =
+    useState('')
 
-  const [isCreatingGuide, setIsCreatingGuide] = useState(false)
+  const [content, setContent] =
+    useState({})
 
-  const [newGuide, setNewGuide] = useState(() =>
-    cloneGuide(EMPTY_GUIDE)
+  const [saving, setSaving] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
+
+  const [activeSection, setActiveSection] =
+    useState('dashboard')
+
+  const [selectedGame, setSelectedGame] =
+    useState('genshin')
+
+  const [selectedCollection, setSelectedCollection] =
+    useState('characters')
+
+  const [selectedItemId, setSelectedItemId] =
+    useState('')
+
+  const [collectionDraft, setCollectionDraft] =
+    useState(null)
+
+  const [isCreatingItem, setIsCreatingItem] =
+    useState(false)
+
+  const [selectedGuide, setSelectedGuide] =
+    useState(0)
+
+  const [isCreatingGuide, setIsCreatingGuide] =
+    useState(false)
+
+  const [newGuide, setNewGuide] =
+    useState(() => cloneGuide(EMPTY_GUIDE))
+
+  const [editorDraft, setEditorDraft] =
+    useState(null)
+
+  const mergedGames = useMemo(
+    () =>
+      Object.values(
+        applyCMSOverrides(
+          gamesData,
+          content
+        )
+      ),
+    [content]
   )
 
-  /*
-   * ============================================================
-   * EXISTING GUIDE EDITOR DRAFT
-   *
-   * IMPORTANT:
-   * The editor no longer edits values directly through
-   * mergedGames/currentGuide on every keystroke.
-   *
-   * This separate draft makes typing stable and reliable.
-   * Changes are saved only when the user presses Save.
-   * ============================================================
-   */
-
-  const [editorDraft, setEditorDraft] = useState(null)
-
-  /*
-   * ============================================================
-   * MERGED GAME DATA
-   * ============================================================
-   */
-
-  const mergedGames = useMemo(() => {
-    return Object.values(
-      applyCMSOverrides(gamesData, content)
-    )
-  }, [content])
-
-  const game = useMemo(() => {
-    return (
+  const game = useMemo(
+    () =>
       mergedGames.find(
-        (item) => item.slug === selectedGame
-      ) || mergedGames[0]
-    )
-  }, [mergedGames, selectedGame])
+        (item) =>
+          item.slug === selectedGame
+      ) || mergedGames[0],
+    [mergedGames, selectedGame]
+  )
 
   const currentGuide =
     !isCreatingGuide && game?.guides
@@ -117,76 +172,38 @@ function AdminPage() {
     !isCreatingGuide &&
     !!currentGuide?.cmsGuideId
 
-  /*
-   * ============================================================
-   * KEEP SELECTED GUIDE INDEX VALID
-   * ============================================================
-   */
-
-  useEffect(() => {
-    if (isCreatingGuide) {
-      return
+  const collectionItems = useMemo(() => {
+    if (!selectedGame || !selectedCollection) {
+      return []
     }
 
-    const guideCount = game?.guides?.length || 0
+    const key =
+      cmsCollectionKey(
+        selectedGame,
+        selectedCollection
+      )
 
-    if (guideCount === 0) {
-      setSelectedGuide(0)
-      return
+    if (!content[key]) {
+      return []
     }
 
-    if (selectedGuide >= guideCount) {
-      setSelectedGuide(guideCount - 1)
-      return
-    }
+    try {
+      const parsed =
+        JSON.parse(content[key])
 
-    if (selectedGuide < 0) {
-      setSelectedGuide(0)
+      return Array.isArray(parsed)
+        ? parsed
+        : []
+    } catch {
+      return []
     }
   }, [
-    game,
-    selectedGuide,
-    isCreatingGuide,
-  ])
-
-  /*
-   * ============================================================
-   * LOAD CURRENT GUIDE INTO EDITOR DRAFT
-   *
-   * This runs when changing game/guide or when a saved change
-   * causes the actual guide data to change.
-   * ============================================================
-   */
-
-  useEffect(() => {
-    if (isCreatingGuide) {
-      setEditorDraft(null)
-      return
-    }
-
-    if (!currentGuide) {
-      setEditorDraft(null)
-      return
-    }
-
-    setEditorDraft(cloneGuide(currentGuide))
-  }, [
+    content,
     selectedGame,
-    selectedGuide,
-    isCreatingGuide,
-    currentGuide?.cmsGuideId,
-    currentGuide?.cmsBuiltInGuideIndex,
+    selectedCollection,
   ])
 
-  /*
-   * ============================================================
-   * SESSION CHECK
-   * ============================================================
-   */
-
   useEffect(() => {
-    let active = true
-
     async function checkSession() {
       try {
         const response = await fetch(
@@ -197,48 +214,21 @@ function AdminPage() {
           }
         )
 
-        const data = await response.json()
+        const data =
+          await response.json()
 
-        if (active) {
-          setAuthenticated(
-            data?.authenticated === true
-          )
-        }
+        setAuthenticated(
+          data?.authenticated === true
+        )
       } catch {
-        if (active) {
-          setAuthenticated(false)
-        }
+        setAuthenticated(false)
       } finally {
-        if (active) {
-          setCheckingSession(false)
-        }
+        setCheckingSession(false)
       }
     }
 
     checkSession()
-
-    return () => {
-      active = false
-    }
   }, [])
-
-  /*
-   * ============================================================
-   * LOAD CMS CONTENT
-   * ============================================================
-   */
-
-  async function loadContent() {
-    try {
-      const data = await fetchCMSContent()
-      setContent(data || {})
-    } catch (error) {
-      setMessage(
-        error?.message ||
-          'Failed to load CMS content.'
-      )
-    }
-  }
 
   useEffect(() => {
     if (authenticated) {
@@ -246,11 +236,46 @@ function AdminPage() {
     }
   }, [authenticated])
 
-  /*
-   * ============================================================
-   * LOGIN
-   * ============================================================
-   */
+  useEffect(() => {
+    if (!isCreatingGuide && currentGuide) {
+      setEditorDraft(
+        cloneGuide(currentGuide)
+      )
+    }
+  }, [
+    selectedGame,
+    selectedGuide,
+    isCreatingGuide,
+    currentGuide?.cmsGuideId,
+    currentGuide?.cmsBuiltInGuideIndex,
+  ])
+
+  useEffect(() => {
+    if (!isCreatingItem) {
+      const found =
+        collectionItems.find(
+          (item) =>
+            item?.id === selectedItemId
+        )
+
+      setCollectionDraft(
+        found
+          ? JSON.parse(JSON.stringify(found))
+          : null
+      )
+    }
+  }, [
+    collectionItems,
+    selectedItemId,
+    isCreatingItem,
+  ])
+
+  async function loadContent() {
+    const data =
+      await fetchCMSContent()
+
+    setContent(data || {})
+  }
 
   async function handleLogin(event) {
     event.preventDefault()
@@ -266,21 +291,24 @@ function AdminPage() {
     }
 
     try {
-      const response = await fetch(
-        '/api/admin/login',
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            password,
-          }),
-        }
-      )
+      const response =
+        await fetch(
+          '/api/admin/login',
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              password,
+            }),
+          }
+        )
 
-      const data = await response.json()
+      const data =
+        await response.json()
 
       if (
         !response.ok ||
@@ -295,7 +323,9 @@ function AdminPage() {
 
       setPassword('')
       setAuthenticated(true)
-      setMessage('Login successful.')
+      setMessage(
+        'Login successful.'
+      )
     } catch {
       setLoginError(
         'Unable to connect to the server.'
@@ -303,91 +333,289 @@ function AdminPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * LOGOUT
-   * ============================================================
-   */
-
   async function handleLogout() {
     try {
-      await fetch('/api/admin/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
-    } catch {
-      // Ignore logout network errors.
-    }
+      await fetch(
+        '/api/admin/logout',
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      )
+    } catch {}
 
     setAuthenticated(false)
     setContent({})
     setEditorDraft(null)
-    setMessage('')
-    setIsCreatingGuide(false)
-  }
-
-  /*
-   * ============================================================
-   * CONTENT HELPERS
-   * ============================================================
-   */
-
-  function getValue(key, fallback = '') {
-    return content[key] !== undefined
-      ? content[key]
-      : fallback
-  }
-
-  function updateLocalContent(key, value) {
-    setContent((previous) => ({
-      ...previous,
-      [key]: value,
-    }))
+    setCollectionDraft(null)
   }
 
   async function saveContentItem(
     key,
     value
   ) {
-    const response = await fetch(
-      '/api/admin/content',
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          key,
-          value,
-        }),
-      }
-    )
+    const response =
+      await fetch(
+        '/api/admin/content',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            key,
+            value,
+          }),
+        }
+      )
 
     if (!response.ok) {
-      let errorMessage =
+      let error =
         'Failed to save content.'
 
       try {
-        const data = await response.json()
+        const data =
+          await response.json()
 
         if (data?.error) {
-          errorMessage = data.error
+          error = data.error
         }
-      } catch {
-        // Ignore invalid JSON.
-      }
+      } catch {}
 
-      throw new Error(errorMessage)
+      throw new Error(error)
     }
 
-    updateLocalContent(key, value)
+    setContent((previous) => ({
+      ...previous,
+      [key]: value,
+    }))
+  }
+
+  async function deleteContentItem(key) {
+    const response =
+      await fetch(
+        `/api/admin/content?key=${encodeURIComponent(
+          key
+        )}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      )
+
+    if (!response.ok) {
+      throw new Error(
+        'Failed to delete content.'
+      )
+    }
+
+    setContent((previous) => {
+      const next = {
+        ...previous,
+      }
+
+      delete next[key]
+
+      return next
+    })
   }
 
   /*
-   * ============================================================
-   * CREATE NEW GUIDE
-   * ============================================================
+   * ==========================================================
+   * COLLECTION CMS
+   * ==========================================================
+   */
+
+  function openCollection(
+    gameSlug,
+    collection
+  ) {
+    setSelectedGame(gameSlug)
+    setSelectedCollection(collection)
+    setActiveSection('collection')
+    setSelectedItemId('')
+    setCollectionDraft(null)
+    setIsCreatingItem(false)
+    setMessage('')
+  }
+
+  function createCollectionItem() {
+    setIsCreatingItem(true)
+    setSelectedItemId('')
+    setCollectionDraft({
+      id: makeId(),
+      title: '',
+      slug: '',
+      description: '',
+      image: '',
+      status: 'published',
+      content: '',
+    })
+    setMessage('')
+  }
+
+  function updateCollectionField(
+    field,
+    value
+  ) {
+    setCollectionDraft(
+      (previous) => ({
+        ...(previous || {}),
+        [field]: value,
+      })
+    )
+  }
+
+  async function saveCollectionItem() {
+    if (!collectionDraft?.title?.trim()) {
+      setMessage(
+        'Please enter a title.'
+      )
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+
+    try {
+      const key =
+        cmsCollectionKey(
+          selectedGame,
+          selectedCollection
+        )
+
+      const existing =
+        [...collectionItems]
+
+      const index =
+        existing.findIndex(
+          (item) =>
+            item?.id ===
+            collectionDraft.id
+        )
+
+      const cleanItem = {
+        ...collectionDraft,
+        id:
+          collectionDraft.id ||
+          makeId(),
+        title:
+          collectionDraft.title.trim(),
+        slug:
+          collectionDraft.slug?.trim() ||
+          collectionDraft.title
+            .trim()
+            .toLowerCase()
+            .replace(
+              /[^a-z0-9]+/g,
+              '-'
+            )
+            .replace(
+              /^-+|-+$/g,
+              ''),
+        description:
+          collectionDraft.description ||
+          '',
+        image:
+          collectionDraft.image ||
+          '',
+        status:
+          collectionDraft.status ||
+          'published',
+        content:
+          collectionDraft.content ||
+          '',
+      }
+
+      if (index >= 0) {
+        existing[index] =
+          cleanItem
+      } else {
+        existing.push(cleanItem)
+      }
+
+      await saveContentItem(
+        key,
+        JSON.stringify(existing)
+      )
+
+      setSelectedItemId(
+        cleanItem.id
+      )
+
+      setIsCreatingItem(false)
+
+      setMessage(
+        'Content saved successfully.'
+      )
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to save content.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteCollectionItem() {
+    if (!collectionDraft?.id) {
+      return
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete "${collectionDraft.title}"?`
+      )
+
+    if (!confirmed) {
+      return
+    }
+
+    setSaving(true)
+
+    try {
+      const key =
+        cmsCollectionKey(
+          selectedGame,
+          selectedCollection
+        )
+
+      const updated =
+        collectionItems.filter(
+          (item) =>
+            item?.id !==
+            collectionDraft.id
+        )
+
+      await saveContentItem(
+        key,
+        JSON.stringify(updated)
+      )
+
+      setCollectionDraft(null)
+      setSelectedItemId('')
+      setIsCreatingItem(false)
+
+      setMessage(
+        'Content deleted successfully.'
+      )
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to delete content.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /*
+   * ==========================================================
+   * GUIDE SYSTEM
+   * ==========================================================
    */
 
   function startNewGuide() {
@@ -396,17 +624,6 @@ function AdminPage() {
     setNewGuide(
       cloneGuide({
         ...EMPTY_GUIDE,
-        icon: '📖',
-        title: '',
-        desc: '',
-        content: [
-          {
-            heading: 'Introduction',
-            paragraphs: [
-              'Write your guide content here.',
-            ],
-          },
-        ],
       })
     )
 
@@ -417,35 +634,39 @@ function AdminPage() {
   function cancelNewGuide() {
     setIsCreatingGuide(false)
     setEditorDraft(null)
-    setMessage('')
   }
 
   function updateNewGuideField(
     field,
     value
   ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      [field]: value,
-    }))
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        [field]: value,
+      })
+    )
   }
 
   function updateNewSectionHeading(
     sectionIndex,
     value
   ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                heading: value,
-              }
-            : section
-      ),
-    }))
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.map(
+            (section, index) =>
+              index === sectionIndex
+                ? {
+                    ...section,
+                    heading: value,
+                  }
+                : section
+          ),
+      })
+    )
   }
 
   function updateNewParagraph(
@@ -453,122 +674,135 @@ function AdminPage() {
     paragraphIndex,
     value
   ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.map(
-        (section, index) => {
-          if (index !== sectionIndex) {
-            return section
-          }
-
-          return {
-            ...section,
-            paragraphs:
-              section.paragraphs.map(
-                (paragraph, index2) =>
-                  index2 === paragraphIndex
-                    ? value
-                    : paragraph
-              ),
-          }
-        }
-      ),
-    }))
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.map(
+            (section, index) =>
+              index === sectionIndex
+                ? {
+                    ...section,
+                    paragraphs:
+                      section.paragraphs.map(
+                        (
+                          paragraph,
+                          index2
+                        ) =>
+                          index2 ===
+                          paragraphIndex
+                            ? value
+                            : paragraph
+                      ),
+                  }
+                : section
+          ),
+      })
+    )
   }
 
   function addNewSection() {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: [
-        ...previous.content,
-        {
-          heading: 'New Section',
-          paragraphs: [
-            'Write your paragraph here.',
-          ],
-        },
-      ],
-    }))
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content: [
+          ...previous.content,
+          {
+            heading: 'New Section',
+            paragraphs: [
+              'Write your paragraph here.',
+            ],
+          },
+        ],
+      })
+    )
   }
 
-  function deleteNewSection(
-    sectionIndex
-  ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.filter(
-        (_, index) =>
-          index !== sectionIndex
-      ),
-    }))
+  function deleteNewSection(index) {
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.filter(
+            (_, i) =>
+              i !== index
+          ),
+      })
+    )
   }
 
-  function addNewParagraph(
-    sectionIndex
-  ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                paragraphs: [
-                  ...(section.paragraphs || []),
-                  'Write your paragraph here.',
-                ],
-              }
-            : section
-      ),
-    }))
+  function addNewParagraph(index) {
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.map(
+            (section, i) =>
+              i === index
+                ? {
+                    ...section,
+                    paragraphs: [
+                      ...(section.paragraphs ||
+                        []),
+                      'Write your paragraph here.',
+                    ],
+                  }
+                : section
+          ),
+      })
+    )
   }
 
-  function addNewVideo(
-    sectionIndex
-  ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                paragraphs: [
-                  ...(section.paragraphs || []),
-                  `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
-                ],
-              }
-            : section
-      ),
-    }))
+  function addNewVideo(index) {
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.map(
+            (section, i) =>
+              i === index
+                ? {
+                    ...section,
+                    paragraphs: [
+                      ...(section.paragraphs ||
+                        []),
+                      `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
+                    ],
+                  }
+                : section
+          ),
+      })
+    )
   }
 
   function deleteNewParagraph(
     sectionIndex,
     paragraphIndex
   ) {
-    setNewGuide((previous) => ({
-      ...previous,
-      content: previous.content.map(
-        (section, index) =>
-          index === sectionIndex
-            ? {
-                ...section,
-                paragraphs:
-                  section.paragraphs.filter(
-                    (_, index2) =>
-                      index2 !== paragraphIndex
-                  ),
-              }
-            : section
-      ),
-    }))
+    setNewGuide(
+      (previous) => ({
+        ...previous,
+        content:
+          previous.content.map(
+            (section, index) =>
+              index === sectionIndex
+                ? {
+                    ...section,
+                    paragraphs:
+                      section.paragraphs.filter(
+                        (_, i) =>
+                          i !==
+                          paragraphIndex
+                      ),
+                  }
+                : section
+          ),
+      })
+    )
   }
 
   async function saveNewGuide() {
-    if (!game) {
-      return
-    }
+    if (!game) return
 
     if (!newGuide.title.trim()) {
       setMessage(
@@ -585,76 +819,51 @@ function AdminPage() {
     }
 
     setSaving(true)
-    setMessage('')
 
     try {
-      const key = cmsGuidesKey(game.slug)
+      const key =
+        cmsGuidesKey(
+          game.slug
+        )
 
-      let existingGuides = []
+      let existing = []
 
-      if (content[key]) {
-        try {
-          const parsed = JSON.parse(
-            content[key]
+      try {
+        const parsed =
+          JSON.parse(
+            content[key] || '[]'
           )
 
-          if (Array.isArray(parsed)) {
-            existingGuides = parsed
-          }
-        } catch {
-          existingGuides = []
+        if (Array.isArray(parsed)) {
+          existing = parsed
         }
-      }
+      } catch {}
 
-      const guideToSave = {
-        cmsGuideId:
-          typeof crypto !== 'undefined' &&
-          typeof crypto.randomUUID ===
-            'function'
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random()
-                .toString(36)
-                .slice(2)}`,
-
+      const guide = {
+        cmsGuideId: makeId(),
         icon:
-          newGuide.icon.trim() || '📖',
-
+          newGuide.icon.trim() ||
+          '📖',
         title:
           newGuide.title.trim(),
-
         desc:
           newGuide.desc.trim(),
-
         content:
-          newGuide.content.map(
-            (section) => ({
-              heading:
-                section.heading.trim(),
-
-              paragraphs:
-                (section.paragraphs || []).map(
-                  (paragraph) =>
-                    paragraph.trim()
-                ),
-            })
-          ),
+          newGuide.content,
       }
-
-      const updatedGuides = [
-        ...existingGuides,
-        guideToSave,
-      ]
 
       await saveContentItem(
         key,
-        JSON.stringify(updatedGuides)
+        JSON.stringify([
+          ...existing,
+          guide,
+        ])
       )
 
-      const newGuideIndex =
-        game.guides?.length || 0
-
       setIsCreatingGuide(false)
-      setSelectedGuide(newGuideIndex)
+      setSelectedGuide(
+        (game.guides?.length || 1) - 1
+      )
 
       setMessage(
         'New guide created successfully.'
@@ -669,50 +878,45 @@ function AdminPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * EDITOR DRAFT HELPERS
-   * ============================================================
-   */
-
   function updateEditorField(
     field,
     value
   ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        [field]: value,
-      }
-    })
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              [field]: value,
+            }
+          : previous
+    )
   }
 
   function updateEditorSectionHeading(
     sectionIndex,
     value
   ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: previous.content.map(
-          (section, index) =>
-            index === sectionIndex
-              ? {
-                  ...section,
-                  heading: value,
-                }
-              : section
-        ),
-      }
-    })
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.map(
+                  (section, index) =>
+                    index ===
+                    sectionIndex
+                      ? {
+                          ...section,
+                          heading:
+                            value,
+                        }
+                      : section
+                ),
+            }
+          : previous
+    )
   }
 
   function updateEditorParagraph(
@@ -720,339 +924,327 @@ function AdminPage() {
     paragraphIndex,
     value
   ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: previous.content.map(
-          (section, index) => {
-            if (index !== sectionIndex) {
-              return section
-            }
-
-            return {
-              ...section,
-              paragraphs:
-                (section.paragraphs || []).map(
-                  (
-                    paragraph,
-                    index2
-                  ) =>
-                    index2 === paragraphIndex
-                      ? value
-                      : paragraph
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.map(
+                  (section, index) =>
+                    index ===
+                    sectionIndex
+                      ? {
+                          ...section,
+                          paragraphs:
+                            section.paragraphs.map(
+                              (
+                                paragraph,
+                                index2
+                              ) =>
+                                index2 ===
+                                paragraphIndex
+                                  ? value
+                                  : paragraph
+                            ),
+                        }
+                      : section
                 ),
             }
-          }
-        ),
-      }
-    })
+          : previous
+    )
   }
 
   function addEditorSection() {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: [
-          ...(previous.content || []),
-          {
-            heading: 'New Section',
-            paragraphs: [
-              'Write your paragraph here.',
-            ],
-          },
-        ],
-      }
-    })
-  }
-
-  function deleteEditorSection(
-    sectionIndex
-  ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: (
-          previous.content || []
-        ).filter(
-          (_, index) =>
-            index !== sectionIndex
-        ),
-      }
-    })
-  }
-
-  function addEditorParagraph(
-    sectionIndex
-  ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: (
-          previous.content || []
-        ).map(
-          (section, index) =>
-            index === sectionIndex
-              ? {
-                  ...section,
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content: [
+                ...(previous.content ||
+                  []),
+                {
+                  heading:
+                    'New Section',
                   paragraphs: [
-                    ...(section.paragraphs ||
-                      []),
                     'Write your paragraph here.',
                   ],
-                }
-              : section
-        ),
-      }
-    })
+                },
+              ],
+            }
+          : previous
+    )
   }
 
-  function addEditorVideo(
-    sectionIndex
-  ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
+  function deleteEditorSection(index) {
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.filter(
+                  (_, i) =>
+                    i !== index
+                ),
+            }
+          : previous
+    )
+  }
 
-      return {
-        ...previous,
-        content: (
-          previous.content || []
-        ).map(
-          (section, index) =>
-            index === sectionIndex
-              ? {
-                  ...section,
-                  paragraphs: [
-                    ...(section.paragraphs ||
-                      []),
-                    `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
-                  ],
-                }
-              : section
-        ),
-      }
-    })
+  function addEditorParagraph(index) {
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.map(
+                  (section, i) =>
+                    i === index
+                      ? {
+                          ...section,
+                          paragraphs: [
+                            ...(section.paragraphs ||
+                              []),
+                            'Write your paragraph here.',
+                          ],
+                        }
+                      : section
+                ),
+            }
+          : previous
+    )
+  }
+
+  function addEditorVideo(index) {
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.map(
+                  (section, i) =>
+                    i === index
+                      ? {
+                          ...section,
+                          paragraphs: [
+                            ...(section.paragraphs ||
+                              []),
+                            `${VIDEO_PREFIX}https://www.youtube.com/watch?v=`,
+                          ],
+                        }
+                      : section
+                ),
+            }
+          : previous
+    )
   }
 
   function deleteEditorParagraph(
     sectionIndex,
     paragraphIndex
   ) {
-    setEditorDraft((previous) => {
-      if (!previous) {
-        return previous
-      }
-
-      return {
-        ...previous,
-        content: (
-          previous.content || []
-        ).map(
-          (section, index) =>
-            index === sectionIndex
-              ? {
-                  ...section,
-                  paragraphs:
-                    (
-                      section.paragraphs ||
-                      []
-                    ).filter(
-                      (_, index2) =>
-                        index2 !==
-                        paragraphIndex
-                    ),
-                }
-              : section
-        ),
-      }
-    })
+    setEditorDraft(
+      (previous) =>
+        previous
+          ? {
+              ...previous,
+              content:
+                previous.content.map(
+                  (section, index) =>
+                    index ===
+                    sectionIndex
+                      ? {
+                          ...section,
+                          paragraphs:
+                            section.paragraphs.filter(
+                              (_, i) =>
+                                i !==
+                                paragraphIndex
+                            ),
+                        }
+                      : section
+                ),
+            }
+          : previous
+    )
   }
 
-  /*
-   * ============================================================
-   * DELETE CURRENT GUIDE
-   * ============================================================
-   */
+  async function saveExistingGuide() {
+    if (
+      !game ||
+      !currentGuide ||
+      !editorDraft
+    ) {
+      return
+    }
+
+    setSaving(true)
+
+    try {
+      if (isEditingCMSGuide) {
+        const key =
+          cmsGuidesKey(
+            game.slug
+          )
+
+        const existing =
+          JSON.parse(
+            content[key] || '[]'
+          )
+
+        const index =
+          existing.findIndex(
+            (guide) =>
+              guide?.cmsGuideId ===
+              currentGuide.cmsGuideId
+          )
+
+        if (index < 0) {
+          throw new Error(
+            'CMS guide not found.'
+          )
+        }
+
+        existing[index] = {
+          ...existing[index],
+          icon:
+            editorDraft.icon ||
+            '📖',
+          title:
+            editorDraft.title,
+          desc:
+            editorDraft.desc,
+          content:
+            editorDraft.content,
+        }
+
+        await saveContentItem(
+          key,
+          JSON.stringify(existing)
+        )
+
+        setMessage(
+          'Guide updated successfully.'
+        )
+
+        return
+      }
+
+      const guideIndex =
+        currentGuide.cmsBuiltInGuideIndex ??
+        selectedGuide
+
+      await saveContentItem(
+        cmsTitleKey(
+          game.slug,
+          guideIndex
+        ),
+        editorDraft.title || ''
+      )
+
+      await saveContentItem(
+        cmsDescKey(
+          game.slug,
+          guideIndex
+        ),
+        editorDraft.desc || ''
+      )
+
+      await saveContentItem(
+        cmsStructureKey(
+          game.slug,
+          guideIndex
+        ),
+        JSON.stringify(
+          editorDraft.content || []
+        )
+      )
+
+      setMessage(
+        'Guide saved successfully.'
+      )
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to save guide.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function deleteCurrentGuide() {
     if (!game || !currentGuide) {
       return
     }
 
-    const guideTitle =
-      currentGuide.title?.trim() ||
-      'this guide'
+    const confirmed =
+      window.confirm(
+        `Delete "${currentGuide.title}"?`
+      )
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${guideTitle}"? This cannot be undone.`
-    )
-
-    if (!confirmed) {
-      return
-    }
+    if (!confirmed) return
 
     setSaving(true)
-    setMessage('')
 
     try {
-      /*
-       * --------------------------------------------------------
-       * CMS GUIDE
-       * --------------------------------------------------------
-       */
-
       if (isEditingCMSGuide) {
-        const key = cmsGuidesKey(
-          game.slug
-        )
+        const key =
+          cmsGuidesKey(
+            game.slug
+          )
 
-        let existingGuides = []
+        const existing =
+          JSON.parse(
+            content[key] || '[]'
+          )
 
-        if (content[key]) {
-          try {
-            const parsed = JSON.parse(
-              content[key]
-            )
-
-            if (Array.isArray(parsed)) {
-              existingGuides = parsed
-            }
-          } catch {
-            existingGuides = []
-          }
-        }
-
-        const cmsIndex =
-          existingGuides.findIndex(
+        const updated =
+          existing.filter(
             (guide) =>
-              guide?.cmsGuideId ===
+              guide?.cmsGuideId !==
               currentGuide.cmsGuideId
-          )
-
-        if (cmsIndex < 0) {
-          throw new Error(
-            'CMS guide could not be found.'
-          )
-        }
-
-        const updatedGuides =
-          existingGuides.filter(
-            (_, index) =>
-              index !== cmsIndex
           )
 
         await saveContentItem(
           key,
-          JSON.stringify(updatedGuides)
+          JSON.stringify(updated)
         )
+      } else {
+        const index =
+          currentGuide.cmsBuiltInGuideIndex ??
+          selectedGuide
 
-        const remainingGuideCount =
-          game.guides?.length
-            ? game.guides.length - 1
-            : 0
-
-        setSelectedGuide(
-          Math.max(
-            0,
-            Math.min(
-              selectedGuide,
-              remainingGuideCount - 1
-            )
+        const key =
+          cmsDeletedGuidesKey(
+            game.slug
           )
-        )
 
-        setEditorDraft(null)
-        setIsCreatingGuide(false)
+        let indexes = []
 
-        setMessage(
-          'Guide deleted successfully.'
-        )
-
-        return
-      }
-
-      /*
-       * --------------------------------------------------------
-       * BUILT-IN GUIDE
-       * --------------------------------------------------------
-       */
-
-      const builtInGuideIndex =
-        Number.isInteger(
-          currentGuide.cmsBuiltInGuideIndex
-        )
-          ? currentGuide.cmsBuiltInGuideIndex
-          : selectedGuide
-
-      const deletedKey =
-        cmsDeletedGuidesKey(
-          game.slug
-        )
-
-      let deletedIndexes = []
-
-      if (content[deletedKey]) {
         try {
-          const parsed = JSON.parse(
-            content[deletedKey]
-          )
+          indexes =
+            JSON.parse(
+              content[key] || '[]'
+            )
+        } catch {}
 
-          if (Array.isArray(parsed)) {
-            deletedIndexes = parsed
-              .map((index) =>
-                Number(index)
-              )
-              .filter((index) =>
-                Number.isInteger(index)
-              )
-          }
-        } catch {
-          deletedIndexes = []
+        if (!indexes.includes(index)) {
+          indexes.push(index)
         }
+
+        await saveContentItem(
+          key,
+          JSON.stringify(indexes)
+        )
       }
 
-      if (
-        !deletedIndexes.includes(
-          builtInGuideIndex
-        )
-      ) {
-        deletedIndexes = [
-          ...deletedIndexes,
-          builtInGuideIndex,
-        ].sort((a, b) => a - b)
-      }
-
-      await saveContentItem(
-        deletedKey,
-        JSON.stringify(deletedIndexes)
-      )
-
-      setSelectedGuide(
-        Math.max(
-          0,
-          selectedGuide - 1
-        )
-      )
-
+      setSelectedGuide(0)
       setEditorDraft(null)
-      setIsCreatingGuide(false)
 
       setMessage(
         'Guide deleted successfully.'
@@ -1068,345 +1260,56 @@ function AdminPage() {
   }
 
   /*
-   * ============================================================
-   * SAVE CMS GUIDE
-   * ============================================================
+   * ==========================================================
+   * DASHBOARD
+   * ==========================================================
    */
 
-  async function saveCMSGuide() {
-    if (!game || !currentGuide || !editorDraft) {
-      return
-    }
+  const dashboardStats = useMemo(() => {
+    let collectionCount = 0
 
-    if (!editorDraft.title.trim()) {
-      setMessage(
-        'Please enter a guide title.'
-      )
-      return
-    }
-
-    if (!editorDraft.desc.trim()) {
-      setMessage(
-        'Please enter a guide description.'
-      )
-      return
-    }
-
-    setSaving(true)
-    setMessage('')
-
-    try {
-      const key = cmsGuidesKey(
-        game.slug
-      )
-
-      let existingGuides = []
-
-      if (content[key]) {
-        try {
-          const parsed = JSON.parse(
-            content[key]
+    Object.keys(content).forEach(
+      (key) => {
+        if (
+          key.startsWith(
+            'cms.collection.'
           )
-
-          if (Array.isArray(parsed)) {
-            existingGuides = parsed
-          }
-        } catch {
-          existingGuides = []
-        }
-      }
-
-      const cmsIndex =
-        existingGuides.findIndex(
-          (guide) =>
-            guide?.cmsGuideId ===
-            currentGuide.cmsGuideId
-        )
-
-      if (cmsIndex < 0) {
-        throw new Error(
-          'CMS guide could not be found.'
-        )
-      }
-
-      const updatedGuide = {
-        ...existingGuides[cmsIndex],
-
-        cmsGuideId:
-          currentGuide.cmsGuideId,
-
-        icon:
-          editorDraft.icon?.trim() ||
-          '📖',
-
-        title:
-          editorDraft.title?.trim() ||
-          '',
-
-        desc:
-          editorDraft.desc?.trim() ||
-          '',
-
-        content:
-          Array.isArray(
-            editorDraft.content
-          )
-            ? editorDraft.content.map(
-                (section) => ({
-                  heading:
-                    section?.heading?.trim() ||
-                    '',
-
-                  paragraphs:
-                    Array.isArray(
-                      section?.paragraphs
-                    )
-                      ? section.paragraphs.map(
-                          (paragraph) =>
-                            paragraph?.trim() ||
-                            ''
-                        )
-                      : [],
-                })
-              )
-            : [],
-      }
-
-      const updatedGuides = [
-        ...existingGuides,
-      ]
-
-      updatedGuides[cmsIndex] =
-        updatedGuide
-
-      await saveContentItem(
-        key,
-        JSON.stringify(updatedGuides)
-      )
-
-      setMessage(
-        'Guide updated successfully.'
-      )
-    } catch (error) {
-      setMessage(
-        error?.message ||
-          'Failed to update guide.'
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /*
-   * ============================================================
-   * SAVE EXISTING GUIDE
-   * ============================================================
-   */
-
-  async function saveExistingGuide() {
-    if (
-      !game ||
-      !currentGuide ||
-      !editorDraft
-    ) {
-      return
-    }
-
-    /*
-     * CMS GUIDE
-     */
-
-    if (isEditingCMSGuide) {
-      await saveCMSGuide()
-      return
-    }
-
-    /*
-     * BUILT-IN GUIDE
-     */
-
-    setSaving(true)
-    setMessage('')
-
-    try {
-      /*
-       * Always use the ORIGINAL guide index.
-       */
-
-      const guideIndex =
-        currentGuide.cmsBuiltInGuideIndex ??
-        selectedGuide
-
-      const titleKey =
-        cmsTitleKey(
-          game.slug,
-          guideIndex
-        )
-
-      const descKey =
-        cmsDescKey(
-          game.slug,
-          guideIndex
-        )
-
-      const structureKey =
-        cmsStructureKey(
-          game.slug,
-          guideIndex
-        )
-
-      const title =
-        editorDraft.title || ''
-
-      const desc =
-        editorDraft.desc || ''
-
-      const structure =
-        JSON.stringify(
-          editorDraft.content || []
-        )
-
-      /*
-       * Save title.
-       */
-
-      await saveContentItem(
-        titleKey,
-        title
-      )
-
-      /*
-       * Save description.
-       */
-
-      await saveContentItem(
-        descKey,
-        desc
-      )
-
-      /*
-       * Save complete structure.
-       */
-
-      await saveContentItem(
-        structureKey,
-        structure
-      )
-
-      /*
-       * Save individual section headings
-       * and paragraphs.
-       */
-
-      let parsedStructure = []
-
-      try {
-        parsedStructure =
-          JSON.parse(structure)
-      } catch {
-        parsedStructure = []
-      }
-
-      if (
-        !Array.isArray(
-          parsedStructure
-        )
-      ) {
-        parsedStructure = []
-      }
-
-      for (
-        let sectionIndex = 0;
-        sectionIndex <
-        parsedStructure.length;
-        sectionIndex += 1
-      ) {
-        const section =
-          parsedStructure[
-            sectionIndex
-          ]
-
-        const headingKey =
-          cmsHeadingKey(
-            game.slug,
-            guideIndex,
-            sectionIndex
-          )
-
-        await saveContentItem(
-          headingKey,
-          section?.heading || ''
-        )
-
-        for (
-          let paragraphIndex = 0;
-          paragraphIndex <
-          (
-            section?.paragraphs ||
-            []
-          ).length;
-          paragraphIndex += 1
         ) {
-          const paragraphKey =
-            cmsKey(
-              game.slug,
-              guideIndex,
-              sectionIndex,
-              paragraphIndex
-            )
+          try {
+            const items =
+              JSON.parse(
+                content[key]
+              )
 
-          await saveContentItem(
-            paragraphKey,
-            section.paragraphs[
-              paragraphIndex
-            ] || ''
-          )
+            if (Array.isArray(items)) {
+              collectionCount +=
+                items.length
+            }
+          } catch {}
         }
       }
-
-      setMessage(
-        'Guide saved successfully.'
-      )
-    } catch (error) {
-      setMessage(
-        error?.message ||
-          'Failed to save guide.'
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /*
-   * ============================================================
-   * GAME / GUIDE SELECTION
-   * ============================================================
-   */
-
-  function handleGameChange(event) {
-    const slug = event.target.value
-
-    setSelectedGame(slug)
-    setSelectedGuide(0)
-    setEditorDraft(null)
-    setIsCreatingGuide(false)
-    setMessage('')
-  }
-
-  function handleGuideChange(event) {
-    setSelectedGuide(
-      Number(event.target.value)
     )
 
-    setEditorDraft(null)
-    setIsCreatingGuide(false)
-    setMessage('')
-  }
+    let guideCount = 0
+
+    mergedGames.forEach((item) => {
+      guideCount +=
+        item.guides?.length || 0
+    })
+
+    return {
+      games: mergedGames.length,
+      guides: guideCount,
+      collectionCount,
+      cmsKeys: Object.keys(content)
+        .length,
+    }
+  }, [content, mergedGames])
 
   /*
-   * ============================================================
-   * RENDER: CHECKING SESSION
-   * ============================================================
+   * ==========================================================
+   * LOGIN
+   * ==========================================================
    */
 
   if (checkingSession) {
@@ -1415,7 +1318,6 @@ function AdminPage() {
         <div className="admin-container">
           <div className="admin-card">
             <h1>GameNexa Admin</h1>
-
             <p>
               Checking admin session...
             </p>
@@ -1425,18 +1327,11 @@ function AdminPage() {
     )
   }
 
-  /*
-   * ============================================================
-   * RENDER: LOGIN
-   * ============================================================
-   */
-
   if (!authenticated) {
     return (
       <div className="admin-page">
         <div className="admin-container">
           <div className="admin-card admin-login-card">
-
             <div className="admin-header">
               <div>
                 <div className="admin-logo">
@@ -1490,7 +1385,6 @@ function AdminPage() {
                 Login
               </button>
             </form>
-
           </div>
         </div>
       </div>
@@ -1498,22 +1392,27 @@ function AdminPage() {
   }
 
   /*
-   * ============================================================
-   * RENDER: ADMIN EDITOR
-   * ============================================================
+   * ==========================================================
+   * ADMIN
+   * ==========================================================
    */
 
-  const editorGuide =
-    isCreatingGuide
-      ? newGuide
-      : editorDraft
+  const collectionName =
+    (
+      COLLECTIONS[
+        selectedGame
+      ] || []
+    ).find(
+      ([id]) =>
+        id === selectedCollection
+    )?.[1] ||
+    selectedCollection
 
   return (
     <div className="admin-page">
       <div className="admin-container">
 
         <header className="admin-topbar">
-
           <div>
             <div className="admin-logo">
               Game
@@ -1521,12 +1420,11 @@ function AdminPage() {
             </div>
 
             <p>
-              GameNexa CMS
+              WordPress-style CMS
             </p>
           </div>
 
           <div className="admin-top-actions">
-
             <Link
               to="/"
               className="admin-secondary-button"
@@ -1541,9 +1439,7 @@ function AdminPage() {
             >
               Logout
             </button>
-
           </div>
-
         </header>
 
         {message && (
@@ -1557,7 +1453,7 @@ function AdminPage() {
                 .includes('please') ||
               message
                 .toLowerCase()
-                .includes('could not')
+                .includes('not found')
                 ? 'admin-error'
                 : 'admin-success'
             }
@@ -1566,720 +1462,713 @@ function AdminPage() {
           </div>
         )}
 
-        <div className="admin-card">
+        <div className="admin-layout">
 
-          <div className="admin-editor-toolbar">
+          <aside className="admin-sidebar">
 
-            <div>
-              <h1>
-                {isCreatingGuide
-                  ? 'Create New Guide'
-                  : 'Guide Editor'}
-              </h1>
+            <button
+              type="button"
+              className={
+                activeSection ===
+                'dashboard'
+                  ? 'admin-nav-button active'
+                  : 'admin-nav-button'
+              }
+              onClick={() =>
+                setActiveSection(
+                  'dashboard'
+                )
+              }
+            >
+              📊 Dashboard
+            </button>
 
-              <p>
-                Manage GameNexa guide content.
-              </p>
+            <div className="admin-nav-title">
+              Content
             </div>
 
-            {!isCreatingGuide && (
-              <button
-                type="button"
-                onClick={startNewGuide}
-                className="admin-primary-button"
-              >
-                + New Guide
-              </button>
+            <button
+              type="button"
+              className={
+                activeSection ===
+                'guides'
+                  ? 'admin-nav-button active'
+                  : 'admin-nav-button'
+              }
+              onClick={() =>
+                setActiveSection(
+                  'guides'
+                )
+              }
+            >
+              📖 Guides
+            </button>
+
+            {mergedGames.map(
+              (item) => (
+                <div
+                  key={item.slug}
+                  className="admin-game-menu"
+                >
+                  <div className="admin-game-title">
+                    {item.name}
+                  </div>
+
+                  {(
+                    COLLECTIONS[
+                      item.slug
+                    ] || []
+                  ).map(
+                    ([id, label]) => (
+                      <button
+                        type="button"
+                        key={id}
+                        className={
+                          activeSection ===
+                            'collection' &&
+                          selectedGame ===
+                            item.slug &&
+                          selectedCollection ===
+                            id
+                            ? 'admin-nav-button sub active'
+                            : 'admin-nav-button sub'
+                        }
+                        onClick={() =>
+                          openCollection(
+                            item.slug,
+                            id
+                          )
+                        }
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
+              )
             )}
 
-          </div>
+          </aside>
 
-          <div className="admin-select-grid">
+          <main className="admin-main">
 
-            <div className="admin-field">
+            {activeSection ===
+              'dashboard' && (
+              <div className="admin-card">
 
-              <label>
-                Game
-              </label>
+                <div className="admin-editor-toolbar">
+                  <div>
+                    <h1>
+                      Dashboard
+                    </h1>
 
-              <select
-                value={selectedGame}
-                onChange={handleGameChange}
-                disabled={isCreatingGuide}
-              >
-                {mergedGames.map(
-                  (item) => (
-                    <option
-                      key={item.slug}
-                      value={item.slug}
-                    >
-                      {item.name}
-                    </option>
-                  )
-                )}
-              </select>
+                    <p>
+                      Manage all GameNexa
+                      content from one place.
+                    </p>
+                  </div>
+                </div>
 
-            </div>
+                <div className="admin-stat-grid">
 
-            <div className="admin-field">
+                  <div className="admin-stat-card">
+                    <strong>
+                      {dashboardStats.games}
+                    </strong>
+                    <span>
+                      Games
+                    </span>
+                  </div>
 
-              <label>
-                Guide
-              </label>
+                  <div className="admin-stat-card">
+                    <strong>
+                      {dashboardStats.guides}
+                    </strong>
+                    <span>
+                      Guides
+                    </span>
+                  </div>
 
-              <select
-                value={
-                  isCreatingGuide
-                    ? ''
-                    : selectedGuide
-                }
-                onChange={handleGuideChange}
-                disabled={isCreatingGuide}
-              >
-                {!isCreatingGuide &&
-                  game?.guides?.map(
-                    (
-                      item,
-                      index
-                    ) => (
-                      <option
+                  <div className="admin-stat-card">
+                    <strong>
+                      {
+                        dashboardStats.collectionCount
+                      }
+                    </strong>
+                    <span>
+                      CMS Items
+                    </span>
+                  </div>
+
+                  <div className="admin-stat-card">
+                    <strong>
+                      {
+                        dashboardStats.cmsKeys
+                      }
+                    </strong>
+                    <span>
+                      Database Entries
+                    </span>
+                  </div>
+
+                </div>
+
+                <div className="admin-dashboard-grid">
+
+                  {mergedGames.map(
+                    (item) => (
+                      <div
+                        className="admin-dashboard-game"
                         key={
-                          item.cmsGuideId ||
-                          `${game.slug}-${index}`
+                          item.slug
                         }
-                        value={index}
                       >
-                        {index + 1}.{' '}
-                        {item.title}
-                        {item.cmsGuideId
-                          ? ' (CMS)'
-                          : ''}
-                      </option>
+                        <h2>
+                          {item.name}
+                        </h2>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedGame(
+                              item.slug
+                            )
+                          }
+                          className="admin-primary-button"
+                        >
+                          Manage Game
+                        </button>
+                      </div>
                     )
                   )}
 
-                {isCreatingGuide && (
-                  <option value="">
-                    New Guide
-                  </option>
-                )}
-              </select>
-
-            </div>
-
-          </div>
-
-          {isCreatingGuide ? (
-            <>
-              <div className="admin-section">
-
-                <h2>
-                  New Guide Details
-                </h2>
-
-                <div className="admin-field">
-
-                  <label>
-                    Icon
-                  </label>
-
-                  <input
-                    type="text"
-                    value={newGuide.icon}
-                    onChange={(event) =>
-                      updateNewGuideField(
-                        'icon',
-                        event.target.value
-                      )
-                    }
-                    placeholder="📖"
-                  />
-
-                </div>
-
-                <div className="admin-field">
-
-                  <label>
-                    Guide Title
-                  </label>
-
-                  <input
-                    type="text"
-                    value={newGuide.title}
-                    onChange={(event) =>
-                      updateNewGuideField(
-                        'title',
-                        event.target.value
-                      )
-                    }
-                    placeholder="Enter guide title"
-                  />
-
-                </div>
-
-                <div className="admin-field">
-
-                  <label>
-                    Description
-                  </label>
-
-                  <textarea
-                    value={newGuide.desc}
-                    onChange={(event) =>
-                      updateNewGuideField(
-                        'desc',
-                        event.target.value
-                      )
-                    }
-                    placeholder="Enter guide description"
-                    rows={4}
-                  />
-
                 </div>
 
               </div>
+            )}
 
-              <div className="admin-section">
+            {activeSection ===
+              'collection' && (
+              <div className="admin-card">
 
-                <div className="admin-section-header">
+                <div className="admin-editor-toolbar">
 
-                  <h2>
-                    Guide Sections
-                  </h2>
+                  <div>
+                    <h1>
+                      {collectionName}
+                    </h1>
 
-                  <button
-                    type="button"
-                    onClick={addNewSection}
-                    className="admin-secondary-button"
-                  >
-                    + Add Section
-                  </button>
-
-                </div>
-
-                {newGuide.content.map(
-                  (
-                    section,
-                    sectionIndex
-                  ) => (
-                    <div
-                      className="admin-content-section"
-                      key={sectionIndex}
-                    >
-
-                      <div className="admin-section-header">
-
-                        <strong>
-                          Section{' '}
-                          {sectionIndex + 1}
-                        </strong>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteNewSection(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-danger-button"
-                        >
-                          Delete Section
-                        </button>
-
-                      </div>
-
-                      <div className="admin-field">
-
-                        <label>
-                          Section Heading
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            section.heading
-                          }
-                          onChange={(event) =>
-                            updateNewSectionHeading(
-                              sectionIndex,
-                              event.target.value
-                            )
-                          }
-                        />
-
-                      </div>
-
-                      {(
-                        section.paragraphs ||
-                        []
-                      ).map(
-                        (
-                          paragraph,
-                          paragraphIndex
-                        ) => (
-                          <div
-                            className="admin-paragraph-row"
-                            key={
-                              paragraphIndex
-                            }
-                          >
-
-                            <div className="admin-field">
-
-                              <label>
-                                {isVideoParagraph(
-                                  paragraph
-                                )
-                                  ? '🎥 Video (paste YouTube or Vimeo link after [video])'
-                                  : `Paragraph ${paragraphIndex + 1}`}
-                              </label>
-
-                              <textarea
-                                value={
-                                  paragraph
-                                }
-                                onChange={(
-                                  event
-                                ) =>
-                                  updateNewParagraph(
-                                    sectionIndex,
-                                    paragraphIndex,
-                                    event.target
-                                      .value
-                                  )
-                                }
-                                rows={
-                                  isVideoParagraph(
-                                    paragraph
-                                  )
-                                    ? 2
-                                    : 5
-                                }
-                              />
-
-                              {isVideoParagraph(
-                                paragraph
-                              ) &&
-                                (toEmbedUrl(
-                                  getVideoUrlFromParagraph(
-                                    paragraph
-                                  )
-                                ) ? (
-                                  <p className="admin-video-hint admin-video-hint-ok">
-                                    ✅ Valid video link — it will show as an embedded player on the guide page.
-                                  </p>
-                                ) : (
-                                  <p className="admin-video-hint admin-video-hint-warn">
-                                    ⚠️ Paste a full YouTube or Vimeo URL after {VIDEO_PREFIX} (e.g. https://www.youtube.com/watch?v=VIDEO_ID).
-                                  </p>
-                                ))}
-
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteNewParagraph(
-                                  sectionIndex,
-                                  paragraphIndex
-                                )
-                              }
-                              className="admin-danger-button"
-                            >
-                              {isVideoParagraph(
-                                paragraph
-                              )
-                                ? 'Delete Video'
-                                : 'Delete Paragraph'}
-                            </button>
-
-                          </div>
-                        )
-                      )}
-
-                      <div className="admin-inline-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            addNewParagraph(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-secondary-button"
-                        >
-                          + Add Paragraph
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            addNewVideo(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-secondary-button"
-                        >
-                          🎥 + Add Video
-                        </button>
-                      </div>
-
-                    </div>
-                  )
-                )}
-
-              </div>
-
-              <div className="admin-actions">
-
-                <button
-                  type="button"
-                  onClick={cancelNewGuide}
-                  className="admin-secondary-button"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={saveNewGuide}
-                  className="admin-primary-button"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Saving...'
-                    : 'Save New Guide'}
-                </button>
-
-              </div>
-            </>
-          ) : editorGuide ? (
-            <>
-              <div className="admin-section">
-
-                <h2>
-                  Guide Details
-                </h2>
-
-                <div className="admin-field">
-
-                  <label>
-                    Icon
-                  </label>
-
-                  <input
-                    type="text"
-                    value={
-                      editorGuide.icon ||
-                      '📖'
-                    }
-                    onChange={(event) =>
-                      updateEditorField(
-                        'icon',
-                        event.target.value
-                      )
-                    }
-                    disabled={
-                      !isEditingCMSGuide
-                    }
-                    title={
-                      !isEditingCMSGuide
-                        ? 'Built-in guide icons are managed in gamesData.js'
-                        : ''
-                    }
-                  />
-
-                </div>
-
-                <div className="admin-field">
-
-                  <label>
-                    Guide Title
-                  </label>
-
-                  <input
-                    type="text"
-                    value={
-                      editorGuide.title ||
-                      ''
-                    }
-                    onChange={(event) =>
-                      updateEditorField(
-                        'title',
-                        event.target.value
-                      )
-                    }
-                  />
-
-                </div>
-
-                <div className="admin-field">
-
-                  <label>
-                    Description
-                  </label>
-
-                  <textarea
-                    value={
-                      editorGuide.desc ||
-                      ''
-                    }
-                    onChange={(event) =>
-                      updateEditorField(
-                        'desc',
-                        event.target.value
-                      )
-                    }
-                    rows={4}
-                  />
-
-                </div>
-
-              </div>
-
-              <div className="admin-section">
-
-                <div className="admin-section-header">
-
-                  <h2>
-                    Guide Sections
-                  </h2>
+                    <p>
+                      {
+                        mergedGames.find(
+                          (item) =>
+                            item.slug ===
+                            selectedGame
+                        )?.name
+                      }{' '}
+                      →{' '}
+                      {collectionName}
+                    </p>
+                  </div>
 
                   <button
                     type="button"
                     onClick={
-                      addEditorSection
+                      createCollectionItem
                     }
-                    className="admin-secondary-button"
+                    className="admin-primary-button"
                   >
-                    + Add New Section
+                    + Add New
                   </button>
 
                 </div>
 
-                {(
-                  editorGuide.content ||
-                  []
-                ).map(
-                  (
-                    section,
-                    sectionIndex
-                  ) => (
-                    <div
-                      className="admin-content-section"
-                      key={sectionIndex}
-                    >
+                <div className="admin-content-manager">
 
-                      <div className="admin-section-header">
+                  <div className="admin-item-list">
 
-                        <strong>
-                          Section{' '}
-                          {sectionIndex + 1}
-                        </strong>
+                    {collectionItems.length ===
+                    0 ? (
+                      <div className="admin-empty">
+                        <h2>
+                          No CMS content yet
+                        </h2>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteEditorSection(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-danger-button"
-                        >
-                          Delete Section
-                        </button>
-
+                        <p>
+                          Click “Add New” to
+                          create your first
+                          item.
+                        </p>
                       </div>
-
-                      <div className="admin-field">
-
-                        <label>
-                          Section Heading
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            section.heading ||
-                            ''
-                          }
-                          onChange={(event) =>
-                            updateEditorSectionHeading(
-                              sectionIndex,
-                              event.target.value
-                            )
-                          }
-                        />
-
-                      </div>
-
-                      {(
-                        section.paragraphs ||
-                        []
-                      ).map(
-                        (
-                          paragraph,
-                          paragraphIndex
-                        ) => (
-                          <div
-                            className="admin-paragraph-row"
-                            key={
-                              paragraphIndex
+                    ) : (
+                      collectionItems.map(
+                        (item) => (
+                          <button
+                            type="button"
+                            key={item.id}
+                            className={
+                              selectedItemId ===
+                              item.id
+                                ? 'admin-item active'
+                                : 'admin-item'
                             }
+                            onClick={() => {
+                              setIsCreatingItem(
+                                false
+                              )
+                              setSelectedItemId(
+                                item.id
+                              )
+                            }}
                           >
+                            <strong>
+                              {item.title ||
+                                'Untitled'}
+                            </strong>
 
-                            <div className="admin-field">
+                            <span>
+                              {item.status ||
+                                'published'}
+                            </span>
+                          </button>
+                        )
+                      )
+                    )}
 
-                              <label>
-                                {isVideoParagraph(
-                                  paragraph
-                                )
-                                  ? '🎥 Video (paste YouTube or Vimeo link after [video])'
-                                  : `Paragraph ${paragraphIndex + 1}`}
-                              </label>
+                  </div>
 
-                              <textarea
-                                value={
-                                  paragraph ||
-                                  ''
-                                }
-                                onChange={(
-                                  event
-                                ) =>
-                                  updateEditorParagraph(
-                                    sectionIndex,
-                                    paragraphIndex,
-                                    event.target
-                                      .value
-                                  )
-                                }
-                                rows={
-                                  isVideoParagraph(
-                                    paragraph
-                                  )
-                                    ? 2
-                                    : 5
-                                }
-                              />
+                  <div className="admin-item-editor">
 
-                              {isVideoParagraph(
-                                paragraph
-                              ) &&
-                                (toEmbedUrl(
-                                  getVideoUrlFromParagraph(
-                                    paragraph
-                                  )
-                                ) ? (
-                                  <p className="admin-video-hint admin-video-hint-ok">
-                                    ✅ Valid video link — it will show as an embedded player on the guide page.
-                                  </p>
-                                ) : (
-                                  <p className="admin-video-hint admin-video-hint-warn">
-                                    ⚠️ Paste a full YouTube or Vimeo URL after {VIDEO_PREFIX} (e.g. https://www.youtube.com/watch?v=VIDEO_ID).
-                                  </p>
-                                ))}
+                    {collectionDraft ? (
+                      <>
+                        <div className="admin-section">
 
-                            </div>
+                          <h2>
+                            Content Details
+                          </h2>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteEditorParagraph(
-                                  sectionIndex,
-                                  paragraphIndex
+                          <div className="admin-field">
+                            <label>
+                              Title
+                            </label>
+
+                            <input
+                              value={
+                                collectionDraft.title ||
+                                ''
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'title',
+                                  event.target
+                                    .value
                                 )
                               }
-                              className="admin-danger-button"
-                            >
-                              {isVideoParagraph(
-                                paragraph
-                              )
-                                ? 'Delete Video'
-                                : 'Delete Paragraph'}
-                            </button>
-
+                            />
                           </div>
+
+                          <div className="admin-field">
+                            <label>
+                              Slug
+                            </label>
+
+                            <input
+                              value={
+                                collectionDraft.slug ||
+                                ''
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'slug',
+                                  event.target
+                                    .value
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="admin-field">
+                            <label>
+                              Description
+                            </label>
+
+                            <textarea
+                              rows={4}
+                              value={
+                                collectionDraft.description ||
+                                ''
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'description',
+                                  event.target
+                                    .value
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="admin-field">
+                            <label>
+                              Image URL
+                            </label>
+
+                            <input
+                              value={
+                                collectionDraft.image ||
+                                ''
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'image',
+                                  event.target
+                                    .value
+                                )
+                              }
+                              placeholder="https://..."
+                            />
+                          </div>
+
+                          <div className="admin-field">
+                            <label>
+                              Status
+                            </label>
+
+                            <select
+                              value={
+                                collectionDraft.status ||
+                                'published'
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'status',
+                                  event.target
+                                    .value
+                                )
+                              }
+                            >
+                              <option value="published">
+                                Published
+                              </option>
+
+                              <option value="draft">
+                                Draft
+                              </option>
+                            </select>
+                          </div>
+
+                          <div className="admin-field">
+                            <label>
+                              Content
+                            </label>
+
+                            <textarea
+                              rows={15}
+                              value={
+                                collectionDraft.content ||
+                                ''
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateCollectionField(
+                                  'content',
+                                  event.target
+                                    .value
+                                )
+                              }
+                              placeholder="Write content here..."
+                            />
+                          </div>
+
+                        </div>
+
+                        <div className="admin-actions">
+
+                          <button
+                            type="button"
+                            onClick={
+                              deleteCollectionItem
+                            }
+                            className="admin-danger-button"
+                            disabled={
+                              saving ||
+                              isCreatingItem
+                            }
+                          >
+                            Delete
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={
+                              saveCollectionItem
+                            }
+                            className="admin-primary-button"
+                            disabled={saving}
+                          >
+                            {saving
+                              ? 'Saving...'
+                              : 'Save Content'}
+                          </button>
+
+                        </div>
+                      </>
+                    ) : (
+                      <div className="admin-empty">
+                        <h2>
+                          Select Content
+                        </h2>
+
+                        <p>
+                          Select an item from
+                          the left or create a
+                          new one.
+                        </p>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {activeSection ===
+              'guides' && (
+              <div className="admin-card">
+
+                <div className="admin-editor-toolbar">
+
+                  <div>
+                    <h1>
+                      {isCreatingGuide
+                        ? 'Create New Guide'
+                        : 'Guide Editor'}
+                    </h1>
+
+                    <p>
+                      Manage GameNexa guide
+                      content.
+                    </p>
+                  </div>
+
+                  {!isCreatingGuide && (
+                    <button
+                      type="button"
+                      onClick={
+                        startNewGuide
+                      }
+                      className="admin-primary-button"
+                    >
+                      + New Guide
+                    </button>
+                  )}
+
+                </div>
+
+                <div className="admin-select-grid">
+
+                  <div className="admin-field">
+                    <label>
+                      Game
+                    </label>
+
+                    <select
+                      value={
+                        selectedGame
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        setSelectedGame(
+                          event.target
+                            .value
+                        )
+                        setSelectedGuide(
+                          0
+                        )
+                        setIsCreatingGuide(
+                          false
+                        )
+                      }}
+                      disabled={
+                        isCreatingGuide
+                      }
+                    >
+                      {mergedGames.map(
+                        (item) => (
+                          <option
+                            key={
+                              item.slug
+                            }
+                            value={
+                              item.slug
+                            }
+                          >
+                            {item.name}
+                          </option>
                         )
                       )}
+                    </select>
+                  </div>
 
-                      <div className="admin-inline-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            addEditorParagraph(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-secondary-button"
-                        >
-                          + Add Paragraph
-                        </button>
+                  <div className="admin-field">
+                    <label>
+                      Guide
+                    </label>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            addEditorVideo(
-                              sectionIndex
-                            )
-                          }
-                          className="admin-secondary-button"
-                        >
-                          🎥 + Add Video
-                        </button>
-                      </div>
+                    <select
+                      value={
+                        isCreatingGuide
+                          ? ''
+                          : selectedGuide
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        setSelectedGuide(
+                          Number(
+                            event
+                              .target
+                              .value
+                          )
+                        )
+                        setIsCreatingGuide(
+                          false
+                        )
+                      }}
+                      disabled={
+                        isCreatingGuide
+                      }
+                    >
+                      {game?.guides?.map(
+                        (
+                          item,
+                          index
+                        ) => (
+                          <option
+                            key={
+                              item.cmsGuideId ||
+                              `${game.slug}-${index}`
+                            }
+                            value={
+                              index
+                            }
+                          >
+                            {index +
+                              1}.{' '}
+                            {item.title}
+                            {item.cmsGuideId
+                              ? ' (CMS)'
+                              : ''}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
 
-                    </div>
-                  )
+                </div>
+
+                {isCreatingGuide ? (
+                  <GuideEditor
+                    guide={
+                      newGuide
+                    }
+                    setGuide={
+                      setNewGuide
+                    }
+                    isNew
+                    saving={saving}
+                    onSave={
+                      saveNewGuide
+                    }
+                    onCancel={
+                      cancelNewGuide
+                    }
+                    onAddSection={
+                      addNewSection
+                    }
+                    onDeleteSection={
+                      deleteNewSection
+                    }
+                    onAddParagraph={
+                      addNewParagraph
+                    }
+                    onAddVideo={
+                      addNewVideo
+                    }
+                    onDeleteParagraph={
+                      deleteNewParagraph
+                    }
+                    onUpdateSectionHeading={
+                      updateNewSectionHeading
+                    }
+                    onUpdateParagraph={
+                      updateNewParagraph
+                    }
+                  />
+                ) : editorDraft ? (
+                  <GuideEditor
+                    guide={
+                      editorDraft
+                    }
+                    setGuide={
+                      setEditorDraft
+                    }
+                    saving={saving}
+                    onSave={
+                      saveExistingGuide
+                    }
+                    onDelete={
+                      deleteCurrentGuide
+                    }
+                    onAddSection={
+                      addEditorSection
+                    }
+                    onDeleteSection={
+                      deleteEditorSection
+                    }
+                    onAddParagraph={
+                      addEditorParagraph
+                    }
+                    onAddVideo={
+                      addEditorVideo
+                    }
+                    onDeleteParagraph={
+                      deleteEditorParagraph
+                    }
+                    onUpdateSectionHeading={
+                      updateEditorSectionHeading
+                    }
+                    onUpdateParagraph={
+                      updateEditorParagraph
+                    }
+                    isCMS={
+                      isEditingCMSGuide
+                    }
+                  />
+                ) : (
+                  <div className="admin-empty">
+                    No guide selected.
+                  </div>
                 )}
 
               </div>
+            )}
 
-              <div className="admin-actions">
-
-                <button
-                  type="button"
-                  onClick={
-                    deleteCurrentGuide
-                  }
-                  className="admin-danger-button"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Deleting...'
-                    : 'Delete Guide'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    saveExistingGuide
-                  }
-                  className="admin-primary-button"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Saving...'
-                    : isEditingCMSGuide
-                      ? 'Save CMS Guide'
-                      : 'Save Everything'}
-                </button>
-
-              </div>
-            </>
-          ) : (
-            <div className="admin-empty">
-
-              <h2>
-                No Guide Selected
-              </h2>
-
-              <p>
-                Select a guide or create a
-                new one.
-              </p>
-
-            </div>
-          )}
+          </main>
 
         </div>
 
@@ -2289,6 +2178,339 @@ function AdminPage() {
 
       </div>
     </div>
+  )
+}
+
+function GuideEditor({
+  guide,
+  setGuide,
+  isNew,
+  saving,
+  onSave,
+  onDelete,
+  onCancel,
+  onAddSection,
+  onDeleteSection,
+  onAddParagraph,
+  onAddVideo,
+  onDeleteParagraph,
+  onUpdateSectionHeading,
+  onUpdateParagraph,
+  isCMS,
+}) {
+  function updateField(
+    field,
+    value
+  ) {
+    setGuide((previous) => ({
+      ...previous,
+      [field]: value,
+    }))
+  }
+
+  return (
+    <>
+
+      <div className="admin-section">
+
+        <h2>
+          Guide Details
+        </h2>
+
+        <div className="admin-field">
+          <label>
+            Icon
+          </label>
+
+          <input
+            value={
+              guide.icon || '📖'
+            }
+            onChange={(event) =>
+              updateField(
+                'icon',
+                event.target.value
+              )
+            }
+            disabled={
+              !isNew && !isCMS
+            }
+          />
+        </div>
+
+        <div className="admin-field">
+          <label>
+            Guide Title
+          </label>
+
+          <input
+            value={
+              guide.title || ''
+            }
+            onChange={(event) =>
+              updateField(
+                'title',
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <div className="admin-field">
+          <label>
+            Description
+          </label>
+
+          <textarea
+            rows={4}
+            value={
+              guide.desc || ''
+            }
+            onChange={(event) =>
+              updateField(
+                'desc',
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+      </div>
+
+      <div className="admin-section">
+
+        <div className="admin-section-header">
+          <h2>
+            Guide Sections
+          </h2>
+
+          <button
+            type="button"
+            onClick={
+              onAddSection
+            }
+            className="admin-secondary-button"
+          >
+            + Add Section
+          </button>
+        </div>
+
+        {(guide.content || []).map(
+          (
+            section,
+            sectionIndex
+          ) => (
+            <div
+              className="admin-content-section"
+              key={sectionIndex}
+            >
+
+              <div className="admin-section-header">
+
+                <strong>
+                  Section{' '}
+                  {sectionIndex + 1}
+                </strong>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onDeleteSection(
+                      sectionIndex
+                    )
+                  }
+                  className="admin-danger-button"
+                >
+                  Delete Section
+                </button>
+
+              </div>
+
+              <div className="admin-field">
+
+                <label>
+                  Section Heading
+                </label>
+
+                <input
+                  value={
+                    section.heading ||
+                    ''
+                  }
+                  onChange={(event) =>
+                    onUpdateSectionHeading(
+                      sectionIndex,
+                      event.target
+                        .value
+                    )
+                  }
+                />
+
+              </div>
+
+              {(
+                section.paragraphs ||
+                []
+              ).map(
+                (
+                  paragraph,
+                  paragraphIndex
+                ) => (
+                  <div
+                    className="admin-paragraph-row"
+                    key={
+                      paragraphIndex
+                    }
+                  >
+
+                    <div className="admin-field">
+
+                      <label>
+                        {isVideoParagraph(
+                          paragraph
+                        )
+                          ? '🎥 Video URL'
+                          : `Paragraph ${
+                              paragraphIndex +
+                              1
+                            }`}
+                      </label>
+
+                      <textarea
+                        rows={
+                          isVideoParagraph(
+                            paragraph
+                          )
+                            ? 2
+                            : 5
+                        }
+                        value={
+                          paragraph ||
+                          ''
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          onUpdateParagraph(
+                            sectionIndex,
+                            paragraphIndex,
+                            event.target
+                              .value
+                          )
+                        }
+                      />
+
+                      {isVideoParagraph(
+                        paragraph
+                      ) && (
+                        <p className="admin-video-hint">
+                          {toEmbedUrl(
+                            getVideoUrlFromParagraph(
+                              paragraph
+                            )
+                          )
+                            ? '✅ Valid YouTube/Vimeo link'
+                            : `⚠️ Add a full video URL after ${VIDEO_PREFIX}`}
+                        </p>
+                      )}
+
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onDeleteParagraph(
+                          sectionIndex,
+                          paragraphIndex
+                        )
+                      }
+                      className="admin-danger-button"
+                    >
+                      Delete
+                    </button>
+
+                  </div>
+                )
+              )}
+
+              <div className="admin-inline-actions">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAddParagraph(
+                      sectionIndex
+                    )
+                  }
+                  className="admin-secondary-button"
+                >
+                  + Paragraph
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAddVideo(
+                      sectionIndex
+                    )
+                  }
+                  className="admin-secondary-button"
+                >
+                  🎥 + Video
+                </button>
+
+              </div>
+
+            </div>
+          )
+        )}
+
+      </div>
+
+      <div className="admin-actions">
+
+        {!isNew && (
+          <button
+            type="button"
+            onClick={
+              onDelete
+            }
+            className="admin-danger-button"
+            disabled={saving}
+          >
+            Delete Guide
+          </button>
+        )}
+
+        {isNew && (
+          <button
+            type="button"
+            onClick={
+              onCancel
+            }
+            className="admin-secondary-button"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onSave}
+          className="admin-primary-button"
+          disabled={saving}
+        >
+          {saving
+            ? 'Saving...'
+            : isNew
+              ? 'Save New Guide'
+              : 'Save Everything'}
+        </button>
+
+      </div>
+
+    </>
   )
 }
 
