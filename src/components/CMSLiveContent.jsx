@@ -1,8 +1,7 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const COLLECTION_LABELS = {
   genshin: {
-    characters: 'Characters',
     builds: 'Builds',
     weapons: 'Weapons',
     artifacts: 'Artifacts',
@@ -10,7 +9,6 @@ const COLLECTION_LABELS = {
     videos: 'Videos',
   },
   'whiteout-survival': {
-    heroes: 'Heroes',
     builds: 'Builds',
     maps: 'Maps',
     facilities: 'Facilities',
