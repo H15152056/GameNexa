@@ -1,1378 +1,1993 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { SEO } from '../SEO'
 import { whiteoutHeroes } from '../data/whiteoutHeroes'
-import './WhiteoutSectionPage.css'
+import './GamePage.css'
 
-const BASE = '/game/whiteout-survival'
+const ICONS = {
+  map: String.fromCodePoint(0x1f5fa, 0xfe0f),
+  fortress: String.fromCodePoint(0x1f3f0),
+  stronghold: String.fromCodePoint(0x1f6e1, 0xfe0f),
+  castle: String.fromCodePoint(0x1f3f0),
+  facility: String.fromCodePoint(0x1f3ed),
+  resource: String.fromCodePoint(0x1f332),
+  territory: String.fromCodePoint(0x1f465),
+  event: String.fromCodePoint(0x2694, 0xfe0f),
+  search: String.fromCodePoint(0x2315),
+  pin: String.fromCodePoint(0x1f4cd),
+  snow: String.fromCodePoint(0x2744, 0xfe0f),
+  hero: String.fromCodePoint(0x1f9b8),
+  calculator: String.fromCodePoint(0x1f9ee),
+  planner: String.fromCodePoint(0x1f9ed),
+  guide: String.fromCodePoint(0x1f4da),
+  arrow: String.fromCodePoint(0x2192),
+  close: String.fromCodePoint(0x2715),
+}
 
-const SECTIONS = {
-  facilities: {
-    icon: '🏭',
-    title: 'Whiteout Survival Facilities',
-    shortTitle: 'Facilities',
-    description: 'Explore Whiteout Survival facilities, their purposes, locations, strategic value and event uses.',
-    intro: 'Whiteout Survival facilities are important objectives that can influence state events, alliance strategy and battlefield control.',
-    keywords: 'Whiteout Survival facilities, Whiteout Survival facility guide, facilities locations, state facilities, event facilities',
-    headings: [
-      ['Facility Types', 'Learn about important event and state facilities and what each facility is used for.'],
-      ['Facility Locations', 'Understand how facility locations affect rallies, movement, control and alliance planning.'],
-      ['Facility Strategy', 'Use facility information to prepare your alliance for events and important state objectives.'],
-    ],
+const STATES = ['Generic', '4496', '4142', '5000', '5001']
+
+const MAP_TYPES = [
+  {
+    id: 'all',
+    name: 'All',
+    icon: ICONS.map,
+  },
+  {
+    id: 'fortress',
+    name: 'Fortresses',
+    icon: ICONS.fortress,
+  },
+  {
+    id: 'stronghold',
+    name: 'Strongholds',
+    icon: ICONS.stronghold,
+  },
+  {
+    id: 'facility',
+    name: 'Facilities',
+    icon: ICONS.facility,
+  },
+  {
+    id: 'castle',
+    name: 'Sunfire Castle',
+    icon: ICONS.castle,
+  },
+  {
+    id: 'resource',
+    name: 'Resources',
+    icon: ICONS.resource,
+  },
+  {
+    id: 'territory',
+    name: 'Alliance Territory',
+    icon: ICONS.territory,
+  },
+  {
+    id: 'event',
+    name: 'Events',
+    icon: ICONS.event,
+  },
+]
+
+const MAP_LOCATIONS = [
+  {
+    id: 'sunfire',
+    type: 'castle',
+    name: 'Sunfire Castle',
+    short: 'SF',
+    x: 50,
+    y: 48,
+    description:
+      'Central strategic landmark used for major state-wide competition and alliance objectives.',
+  },
+  {
+    id: 'fortress-01',
+    type: 'fortress',
+    name: 'Fortress 01',
+    short: 'F1',
+    x: 24,
+    y: 25,
+    description:
+      'Major alliance objective. Control and timing are important during state activities.',
+  },
+  {
+    id: 'fortress-02',
+    type: 'fortress',
+    name: 'Fortress 02',
+    short: 'F2',
+    x: 76,
+    y: 26,
+    description:
+      'Northern strategic fortress position.',
+  },
+  {
+    id: 'fortress-03',
+    type: 'fortress',
+    name: 'Fortress 03',
+    short: 'F3',
+    x: 23,
+    y: 72,
+    description:
+      'Southern strategic fortress position.',
+  },
+  {
+    id: 'fortress-04',
+    type: 'fortress',
+    name: 'Fortress 04',
+    short: 'F4',
+    x: 77,
+    y: 72,
+    description:
+      'Southern strategic fortress position.',
   },
 
-  fortresses: {
-    icon: '🏰',
-    title: 'Whiteout Survival Fortresses',
-    shortTitle: 'Fortresses',
-    description: 'Learn about Whiteout Survival fortresses, objectives, control, territory and alliance strategy.',
-    intro: 'Fortresses are important alliance objectives that require preparation, coordination and strategic control.',
-    keywords: 'Whiteout Survival fortresses, fortress guide, fortress locations, fortress strategy',
-    headings: [
-      ['Fortress Objectives', 'Understand fortress objectives and why alliances compete for strategic control.'],
-      ['Fortress Preparation', 'Prepare rallies, troops, assignments and alliance coordination before fortress events.'],
-      ['Fortress Strategy', 'Use timing, territory and coordinated attacks to improve fortress control.'],
-    ],
+  {
+    id: 'stronghold-01',
+    type: 'stronghold',
+    name: 'Stronghold 01',
+    short: 'S1',
+    x: 38,
+    y: 25,
+    description:
+      'Stronghold location suitable for alliance planning and coordinated attacks.',
+  },
+  {
+    id: 'stronghold-02',
+    type: 'stronghold',
+    name: 'Stronghold 02',
+    short: 'S2',
+    x: 62,
+    y: 25,
+    description:
+      'Stronghold location in the northern sector.',
+  },
+  {
+    id: 'stronghold-03',
+    type: 'stronghold',
+    name: 'Stronghold 03',
+    short: 'S3',
+    x: 29,
+    y: 49,
+    description:
+      'Central-west stronghold position.',
+  },
+  {
+    id: 'stronghold-04',
+    type: 'stronghold',
+    name: 'Stronghold 04',
+    short: 'S4',
+    x: 71,
+    y: 49,
+    description:
+      'Central-east stronghold position.',
+  },
+  {
+    id: 'stronghold-05',
+    type: 'stronghold',
+    name: 'Stronghold 05',
+    short: 'S5',
+    x: 38,
+    y: 73,
+    description:
+      'Southern stronghold position.',
+  },
+  {
+    id: 'stronghold-06',
+    type: 'stronghold',
+    name: 'Stronghold 06',
+    short: 'S6',
+    x: 62,
+    y: 73,
+    description:
+      'Southern stronghold position.',
   },
 
-  strongholds: {
-    icon: '🛡️',
-    title: 'Whiteout Survival Strongholds',
-    shortTitle: 'Strongholds',
-    description: 'Whiteout Survival stronghold guide covering objectives, control priorities and alliance preparation.',
-    intro: 'Strongholds are valuable strategic objectives where alliance coordination and timing can make a major difference.',
-    keywords: 'Whiteout Survival strongholds, stronghold guide, stronghold strategy',
-    headings: [
-      ['Stronghold Objectives', 'Learn how strongholds fit into alliance progression and state events.'],
-      ['Stronghold Preparation', 'Organize troops, rallies and assignments before stronghold battles.'],
-      ['Stronghold Strategy', 'Prioritize objectives and coordinate your alliance for efficient control.'],
-    ],
+  {
+    id: 'facility-01',
+    type: 'facility',
+    name: 'Facility Alpha',
+    short: 'A',
+    x: 17,
+    y: 45,
+    description:
+      'Strategic facility. Use the map to plan routes and alliance positioning.',
+  },
+  {
+    id: 'facility-02',
+    type: 'facility',
+    name: 'Facility Bravo',
+    short: 'B',
+    x: 83,
+    y: 45,
+    description:
+      'Strategic facility on the eastern side of the map.',
+  },
+  {
+    id: 'facility-03',
+    type: 'facility',
+    name: 'Facility Charlie',
+    short: 'C',
+    x: 45,
+    y: 17,
+    description:
+      'Northern facility position.',
+  },
+  {
+    id: 'facility-04',
+    type: 'facility',
+    name: 'Facility Delta',
+    short: 'D',
+    x: 55,
+    y: 83,
+    description:
+      'Southern facility position.',
   },
 
-  resources: {
-    icon: '🌲',
-    title: 'Whiteout Survival Resources',
-    shortTitle: 'Resources',
-    description: 'Whiteout Survival resources guide covering Wood, Coal, Iron, Meat and resource planning.',
-    intro: 'Resources are essential for construction, research, troop training and overall settlement progression.',
-    keywords: 'Whiteout Survival resources, wood, coal, iron, meat, resource guide',
-    headings: [
-      ['Resource Types', 'Learn how Wood, Coal, Iron and Meat support settlement progression.'],
-      ['Resource Gathering', 'Improve gathering efficiency by choosing appropriate troops, locations and timing.'],
-      ['Resource Planning', 'Plan resource requirements before major upgrades, research and troop training.'],
-    ],
+  {
+    id: 'resource-01',
+    type: 'resource',
+    name: 'Resource Zone North',
+    short: 'R',
+    x: 50,
+    y: 11,
+    description:
+      'Resource area. Exact resource availability can vary by state and game cycle.',
+  },
+  {
+    id: 'resource-02',
+    type: 'resource',
+    name: 'Resource Zone West',
+    short: 'R',
+    x: 10,
+    y: 50,
+    description:
+      'Western resource area.',
+  },
+  {
+    id: 'resource-03',
+    type: 'resource',
+    name: 'Resource Zone East',
+    short: 'R',
+    x: 90,
+    y: 50,
+    description:
+      'Eastern resource area.',
+  },
+  {
+    id: 'resource-04',
+    type: 'resource',
+    name: 'Resource Zone South',
+    short: 'R',
+    x: 50,
+    y: 89,
+    description:
+      'Southern resource area.',
   },
 
-  'alliance-territory': {
-    icon: '👥',
-    title: 'Whiteout Survival Alliance Territory',
-    shortTitle: 'Alliance Territory',
-    description: 'Whiteout Survival alliance territory guide covering HQ, banners, connections and expansion.',
-    intro: 'Alliance territory connects your alliance to important facilities, objectives and strategic locations.',
-    keywords: 'Whiteout Survival alliance territory, alliance HQ, alliance banners, territory guide',
-    headings: [
-      ['Alliance HQ', 'Understand the role of the alliance HQ and how it supports territorial expansion.'],
-      ['Alliance Banners', 'Use banners to connect territory and establish useful strategic routes.'],
-      ['Territory Expansion', 'Plan connected territory carefully around important objectives and facilities.'],
-    ],
+  {
+    id: 'territory-01',
+    type: 'territory',
+    name: 'Alliance Territory',
+    short: 'T',
+    x: 34,
+    y: 40,
+    description:
+      'Use this area for alliance territory planning and coordinated expansion.',
+  },
+  {
+    id: 'territory-02',
+    type: 'territory',
+    name: 'Alliance Territory',
+    short: 'T',
+    x: 66,
+    y: 40,
+    description:
+      'Eastern alliance territory planning zone.',
   },
 
-  events: {
-    icon: '⚔️',
-    title: 'Whiteout Survival Events',
-    shortTitle: 'Events',
-    description: 'Whiteout Survival events guide covering Bear Trap, Crazy Joe, Foundry Battle, Canyon Clash and more.',
-    intro: 'Events are a major part of Whiteout Survival progression, rewards and alliance activity.',
-    keywords: 'Whiteout Survival events, Bear Trap, Crazy Joe, Foundry Battle, Canyon Clash',
-    headings: [
-      ['Major Events', 'Explore major alliance and state events including Bear Trap, Crazy Joe, Foundry Battle and Canyon Clash.'],
-      ['Event Preparation', 'Prepare heroes, troops, formations, speedups and resources before important events.'],
-      ['Event Strategy', 'Use event-specific strategies to improve participation and alliance rewards.'],
-    ],
+  {
+    id: 'event-01',
+    type: 'event',
+    name: 'Battle Event',
+    short: 'E',
+    x: 42,
+    y: 58,
+    description:
+      'Event location. Check the current event schedule before committing troops.',
   },
-
-  buildings: {
-    icon: '🏗️',
-    title: 'Whiteout Survival Buildings',
-    shortTitle: 'Buildings',
-    description: 'Whiteout Survival buildings guide covering Furnace, Embassy, Command Center, Infirmary and progression.',
-    intro: 'Buildings determine settlement progression and unlock important features, troop capacity and research opportunities.',
-    keywords: 'Whiteout Survival buildings, Furnace guide, Embassy, Command Center, Infirmary',
-    headings: [
-      ['Core Buildings', 'Learn about the Furnace and other important buildings that drive settlement progression.'],
-      ['Building Priorities', 'Prioritize upgrades according to progression requirements and resource availability.'],
-      ['Building Strategy', 'Plan construction queues and resources before starting major upgrades.'],
-    ],
+  {
+    id: 'event-02',
+    type: 'event',
+    name: 'State Event',
+    short: 'E',
+    x: 58,
+    y: 58,
+    description:
+      'State event area for coordinated alliance activity.',
   },
+]
 
-  research: {
-    icon: '🔬',
-    title: 'Whiteout Survival Research',
-    shortTitle: 'Research',
-    description: 'Whiteout Survival research guide covering Economy, Battle and research progression.',
-    intro: 'Research improves your settlement, economy, troops and combat capabilities.',
-    keywords: 'Whiteout Survival research, research guide, economy research, battle research',
-    headings: [
-      ['Economy Research', 'Improve resource production, gathering and settlement development through economy research.'],
-      ['Battle Research', 'Increase combat effectiveness through battle-focused research upgrades.'],
-      ['Research Priorities', 'Choose research priorities according to your current progression and gameplay goals.'],
-    ],
+const TYPE_META = {
+  fortress: {
+    label: 'Fortress',
+    icon: ICONS.fortress,
   },
-
-  troops: {
-    icon: '🪖',
-    title: 'Whiteout Survival Troops',
-    shortTitle: 'Troops',
-    description: 'Whiteout Survival troops guide covering Infantry, Lancer and Marksman roles, formations and training.',
-    intro: 'Troops are the foundation of combat, rallies, defense and alliance events in Whiteout Survival.',
-    keywords: 'Whiteout Survival troops, Infantry, Lancer, Marksman, troop guide',
-    headings: [
-      ['Infantry', 'Infantry troops provide frontline durability and are important for many formations.'],
-      ['Lancer', 'Lancers provide damage and mobility-focused combat capabilities.'],
-      ['Marksman', 'Marksmen provide ranged damage and should be used according to formation and event requirements.'],
-    ],
+  stronghold: {
+    label: 'Stronghold',
+    icon: ICONS.stronghold,
   },
-
-  'alliance-planner': {
-    icon: '🧭',
-    title: 'Whiteout Survival Alliance Planner',
-    shortTitle: 'Alliance Planner',
-    description: 'Whiteout Survival alliance planner for objectives, rallies, territory movement and event assignments.',
-    intro: 'Use alliance planning tools to organize objectives, assignments, rallies and event preparation.',
-    keywords: 'Whiteout Survival alliance planner, alliance strategy, rally planner, event planner',
-    headings: [
-      ['Objective Planning', 'Organize important alliance objectives and assign priorities before events.'],
-      ['Rally Planning', 'Coordinate rally leads, reinforcements and timing for important battles.'],
-      ['Alliance Assignments', 'Keep event roles and strategic assignments organized for better coordination.'],
-    ],
+  facility: {
+    label: 'Facility',
+    icon: ICONS.facility,
+  },
+  castle: {
+    label: 'Sunfire Castle',
+    icon: ICONS.castle,
+  },
+  resource: {
+    label: 'Resource',
+    icon: ICONS.resource,
+  },
+  territory: {
+    label: 'Alliance Territory',
+    icon: ICONS.territory,
+  },
+  event: {
+    label: 'Event',
+    icon: ICONS.event,
   },
 }
 
-const HEROES_COLLECTION_KEY = 'cms.collection.whiteout-survival.heroes'
+function SectionHero({ title, description, icon }) {
+  return (
+    <div className="wo-section-hero">
+      <div className="wo-section-hero-icon">{icon}</div>
 
-function normalizeHero(hero, index = 0) {
-  return {
-    id: hero?.id || hero?.heroId || hero?.heroSlug || `hero-${index}`,
-    slug: hero?.slug || hero?.heroSlug || hero?.id || `hero-${index}`,
-    name: hero?.name || hero?.heroName || hero?.title || 'Unknown Hero',
-    image: hero?.image || hero?.imageUrl || hero?.avatar || '',
-    rarity: hero?.rarity || hero?.stars || '',
-    generation: hero?.generation || hero?.gen || '',
-    role: hero?.role || hero?.type || '',
-    description: hero?.description || hero?.desc || '',
-  }
+      <div>
+        <div className="wo-eyebrow">WHITEOUT SURVIVAL</div>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+    </div>
+  )
 }
 
-function getStaticHeroes() {
-  return Array.isArray(whiteoutHeroes)
-    ? whiteoutHeroes.map((hero, index) => normalizeHero(hero, index))
-    : Object.values(whiteoutHeroes || {}).map((hero, index) =>
-        normalizeHero(hero, index)
-      )
+function QuickCard({ to, icon, title, description }) {
+  return (
+    <Link to={to} className="wo-quick-card">
+      <div className="wo-quick-icon">{icon}</div>
+
+      <div className="wo-quick-content">
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </div>
+
+      <span className="wo-quick-arrow">{ICONS.arrow}</span>
+    </Link>
+  )
 }
 
-function mergeHeroes(staticHeroes, cmsHeroes) {
-  const result = [...staticHeroes]
+function MapMarker({ item, selected, onClick }) {
+  const meta = TYPE_META[item.type]
 
-  cmsHeroes.forEach((cms, index) => {
-    const normalized = normalizeHero(cms, index)
-
-    const existingIndex = result.findIndex(
-      hero =>
-        hero.slug === normalized.slug ||
-        hero.id === normalized.id ||
-        hero.name.toLowerCase() === normalized.name.toLowerCase()
-    )
-
-    if (existingIndex >= 0) {
-      result[existingIndex] = {
-        ...result[existingIndex],
-        ...normalized,
-      }
-    } else {
-      result.push(normalized)
-    }
-  })
-
-  return result
+  return (
+    <button
+      type="button"
+      className={`wo-map-marker wo-marker-${item.type} ${
+        selected ? 'is-selected' : ''
+      }`}
+      style={{
+        left: `${item.x}%`,
+        top: `${item.y}%`,
+      }}
+      onClick={() => onClick(item)}
+      title={item.name}
+    >
+      <span className="wo-marker-icon">{meta.icon}</span>
+      <span className="wo-marker-label">{item.short}</span>
+    </button>
+  )
 }
 
-/* ============================================================
-   WHITEOUT HERO DATABASE
-   Uses the same visual card language as the main GamePage:
-   portrait image, rarity badge, clean metadata and hover lift.
-   ============================================================ */
-
-function HeroDatabase() {
-  const [heroes, setHeroes] = useState(getStaticHeroes)
+function BattleMap() {
+  const [state, setState] = useState('Generic')
+  const [mapType, setMapType] = useState('all')
   const [search, setSearch] = useState('')
-  const [rarity, setRarity] = useState('all')
-  const [role, setRole] = useState('all')
-  const [generation, setGeneration] = useState('all')
+  const [selected, setSelected] = useState(null)
+  const [showLegend, setShowLegend] = useState(true)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadCMSHeroes() {
-      try {
-        const response = await fetch('/api/content')
-        if (!response.ok) return
-
-        const content = await response.json()
-        const raw = content?.[HEROES_COLLECTION_KEY]
-
-        if (!raw) return
-
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-
-        const cmsHeroes = Array.isArray(parsed)
-          ? parsed.filter(item => item?.status !== 'draft')
-          : []
-
-        if (!cancelled) {
-          setHeroes(mergeHeroes(getStaticHeroes(), cmsHeroes))
-        }
-      } catch {
-        // Static database remains available if CMS is unavailable.
-      }
-    }
-
-    loadCMSHeroes()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const rarities = useMemo(
-    () => [...new Set(heroes.map(hero => hero.rarity).filter(Boolean))],
-    [heroes]
-  )
-
-  const roles = useMemo(
-    () => [...new Set(heroes.map(hero => hero.role).filter(Boolean))],
-    [heroes]
-  )
-
-  const generations = useMemo(
-    () => [...new Set(heroes.map(hero => hero.generation).filter(Boolean))],
-    [heroes]
-  )
-
-  const filtered = useMemo(() => {
+  const filteredLocations = useMemo(() => {
     const query = search.trim().toLowerCase()
 
-    return heroes.filter(hero => {
+    return MAP_LOCATIONS.filter((item) => {
+      const matchesType =
+        mapType === 'all' || item.type === mapType
+
       const matchesSearch =
         !query ||
-        hero.name.toLowerCase().includes(query) ||
-        hero.role.toLowerCase().includes(query) ||
-        String(hero.generation).toLowerCase().includes(query)
+        item.name.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query)
 
-      const matchesRarity =
-        rarity === 'all' || String(hero.rarity) === String(rarity)
-
-      const matchesRole =
-        role === 'all' || hero.role === role
-
-      const matchesGeneration =
-        generation === 'all' ||
-        String(hero.generation) === String(generation)
-
-      return (
-        matchesSearch &&
-        matchesRarity &&
-        matchesRole &&
-        matchesGeneration
-      )
+      return matchesType && matchesSearch
     })
-  }, [heroes, search, rarity, role, generation])
+  }, [mapType, search])
+
+  const counts = useMemo(() => {
+    const result = {
+      fortress: 0,
+      stronghold: 0,
+      facility: 0,
+      castle: 0,
+      resource: 0,
+      territory: 0,
+      event: 0,
+    }
+
+    MAP_LOCATIONS.forEach((item) => {
+      result[item.type] += 1
+    })
+
+    return result
+  }, [])
 
   return (
     <>
-      <style>{`
-        .gnx-whiteout-heroes {
-          width: 100%;
-        }
+      <div className="wo-map-toolbar">
+        <div className="wo-state-selector">
+          <span>State Map</span>
 
-        .gnx-whiteout-heroes-head {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 24px;
-          margin-bottom: 24px;
-        }
-
-        .gnx-whiteout-heroes-kicker {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .14em;
-          text-transform: uppercase;
-          opacity: .68;
-        }
-
-        .gnx-whiteout-heroes-kicker::before {
-          content: '';
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: currentColor;
-          opacity: .8;
-        }
-
-        .gnx-whiteout-heroes-head h2 {
-          margin: 0;
-          font-size: clamp(28px, 4vw, 42px);
-          line-height: 1.05;
-          letter-spacing: -.035em;
-        }
-
-        .gnx-whiteout-heroes-head p {
-          max-width: 680px;
-          margin: 10px 0 0;
-          line-height: 1.65;
-          opacity: .68;
-        }
-
-        .gnx-whiteout-heroes-count {
-          flex: 0 0 auto;
-          padding: 10px 14px;
-          border: 1px solid rgba(255,255,255,.10);
-          border-radius: 999px;
-          background: rgba(255,255,255,.045);
-          font-size: 12px;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .gnx-whiteout-heroes-controls {
-          display: grid;
-          grid-template-columns: minmax(200px, 1.7fr) repeat(3, minmax(130px, 1fr));
-          gap: 10px;
-          margin-bottom: 24px;
-        }
-
-        .gnx-whiteout-heroes-controls input,
-        .gnx-whiteout-heroes-controls select {
-          width: 100%;
-          min-width: 0;
-          height: 46px;
-          padding: 0 13px;
-          border: 1px solid rgba(255,255,255,.10);
-          border-radius: 11px;
-          outline: none;
-          background: rgba(255,255,255,.045);
-          color: inherit;
-          font: inherit;
-          font-size: 13px;
-        }
-
-        .gnx-whiteout-heroes-controls input::placeholder {
-          color: currentColor;
-          opacity: .45;
-        }
-
-        .gnx-whiteout-heroes-controls input:focus,
-        .gnx-whiteout-heroes-controls select:focus {
-          border-color: rgba(255,255,255,.28);
-          background: rgba(255,255,255,.065);
-        }
-
-        .gnx-whiteout-hero-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-          gap: 16px;
-        }
-
-        .gnx-whiteout-hero-card {
-          display: block;
-          width: 100%;
-          min-width: 0;
-          padding: 0;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,.10);
-          border-radius: 16px;
-          background: rgba(255,255,255,.035);
-          color: inherit;
-          text-align: left;
-          transition:
-            transform .18s ease,
-            border-color .18s ease,
-            box-shadow .18s ease,
-            background .18s ease;
-        }
-
-        .gnx-whiteout-hero-card:hover {
-          transform: translateY(-5px);
-          border-color: rgba(255,255,255,.24);
-          background: rgba(255,255,255,.055);
-          box-shadow: 0 14px 32px rgba(0,0,0,.24);
-        }
-
-        .gnx-whiteout-hero-image {
-          position: relative;
-          aspect-ratio: 3 / 4;
-          overflow: hidden;
-          background: rgba(0,0,0,.18);
-        }
-
-        .gnx-whiteout-hero-image img {
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center top;
-          transition: transform .28s ease;
-        }
-
-        .gnx-whiteout-hero-card:hover .gnx-whiteout-hero-image img {
-          transform: scale(1.045);
-        }
-
-        .gnx-whiteout-hero-image::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background:
-            linear-gradient(
-              to top,
-              rgba(0,0,0,.50) 0%,
-              rgba(0,0,0,.08) 35%,
-              transparent 58%
-            );
-          pointer-events: none;
-        }
-
-        .gnx-whiteout-hero-rarity {
-          position: absolute;
-          left: 9px;
-          bottom: 9px;
-          z-index: 2;
-          padding: 5px 9px;
-          border: 1px solid rgba(255,255,255,.16);
-          border-radius: 999px;
-          background: rgba(0,0,0,.68);
-          backdrop-filter: blur(8px);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .04em;
-          line-height: 1;
-        }
-
-        .gnx-whiteout-hero-generation {
-          position: absolute;
-          right: 9px;
-          top: 9px;
-          z-index: 2;
-          padding: 5px 8px;
-          border: 1px solid rgba(255,255,255,.14);
-          border-radius: 8px;
-          background: rgba(0,0,0,.58);
-          backdrop-filter: blur(8px);
-          font-size: 10px;
-          font-weight: 800;
-        }
-
-        .gnx-whiteout-hero-placeholder {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          min-height: 220px;
-          font-size: 46px;
-          opacity: .55;
-          background:
-            radial-gradient(
-              circle at 50% 35%,
-              rgba(255,255,255,.09),
-              transparent 50%
-            ),
-            rgba(0,0,0,.18);
-        }
-
-        .gnx-whiteout-hero-body {
-          padding: 13px;
-        }
-
-        .gnx-whiteout-hero-body h3 {
-          margin: 0 0 10px;
-          font-size: 16px;
-          line-height: 1.25;
-          letter-spacing: -.015em;
-        }
-
-        .gnx-whiteout-hero-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 5px;
-        }
-
-        .gnx-whiteout-hero-meta span {
-          display: inline-flex;
-          align-items: center;
-          min-height: 22px;
-          padding: 4px 7px;
-          border: 1px solid rgba(255,255,255,.06);
-          border-radius: 7px;
-          background: rgba(255,255,255,.07);
-          font-size: 10px;
-          line-height: 1.15;
-          opacity: .82;
-        }
-
-        .gnx-whiteout-hero-description {
-          margin: 10px 0 0;
-          font-size: 11px;
-          line-height: 1.5;
-          opacity: .58;
-        }
-
-        .gnx-whiteout-empty {
-          padding: 45px 20px;
-          border: 1px solid rgba(255,255,255,.08);
-          border-radius: 16px;
-          background: rgba(255,255,255,.03);
-          text-align: center;
-          opacity: .7;
-        }
-
-        @media (max-width: 800px) {
-          .gnx-whiteout-heroes-controls {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .gnx-whiteout-heroes-controls input {
-            grid-column: 1 / -1;
-          }
-        }
-
-        @media (max-width: 600px) {
-          .gnx-whiteout-heroes-head {
-            display: block;
-            margin-bottom: 18px;
-          }
-
-          .gnx-whiteout-heroes-count {
-            display: inline-flex;
-            margin-top: 14px;
-          }
-
-          .gnx-whiteout-heroes-controls {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-          }
-
-          .gnx-whiteout-heroes-controls input,
-          .gnx-whiteout-heroes-controls select {
-            height: 43px;
-          }
-
-          .gnx-whiteout-hero-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .gnx-whiteout-hero-body {
-            padding: 11px;
-          }
-
-          .gnx-whiteout-hero-body h3 {
-            margin-bottom: 8px;
-            font-size: 14px;
-          }
-
-          .gnx-whiteout-hero-meta {
-            gap: 4px;
-          }
-
-          .gnx-whiteout-hero-meta span {
-            padding: 4px 6px;
-            font-size: 9px;
-          }
-
-          .gnx-whiteout-hero-description {
-            display: none;
-          }
-        }
-      `}</style>
-
-      <section className="gnx-whiteout-heroes">
-
-        <div className="gnx-whiteout-heroes-head">
-          <div>
-            <span className="gnx-whiteout-heroes-kicker">
-              WHITEOUT SURVIVAL DATABASE
-            </span>
-
-            <h2>Heroes</h2>
-
-            <p>
-              Explore the complete GameNexa Whiteout Survival hero database.
-              Search by hero name, role, rarity or generation.
-            </p>
-          </div>
-
-          <strong className="gnx-whiteout-heroes-count">
-            {filtered.length} / {heroes.length} Heroes
-          </strong>
+          <select
+            value={state}
+            onChange={(e) => {
+              setState(e.target.value)
+              setSelected(null)
+            }}
+          >
+            {STATES.map((item) => (
+              <option key={item} value={item}>
+                {item === 'Generic' ? 'Generic Map' : `State ${item}`}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="gnx-whiteout-heroes-controls">
+        <label className="wo-map-search">
+          <span>{ICONS.search}</span>
 
           <input
             value={search}
-            onChange={event => setSearch(event.target.value)}
-            placeholder="Search heroes..."
-            aria-label="Search Whiteout Survival heroes"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search map locations..."
           />
 
-          <select
-            value={rarity}
-            onChange={event => setRarity(event.target.value)}
-            aria-label="Filter by rarity"
-          >
-            <option value="all">All Rarities</option>
-
-            {rarities.map(value => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={role}
-            onChange={event => setRole(event.target.value)}
-            aria-label="Filter by role"
-          >
-            <option value="all">All Roles</option>
-
-            {roles.map(value => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={generation}
-            onChange={event => setGeneration(event.target.value)}
-            aria-label="Filter by generation"
-          >
-            <option value="all">All Generations</option>
-
-            {generations.map(value => (
-              <option key={value} value={value}>
-                Generation {value}
-              </option>
-            ))}
-          </select>
-
-        </div>
-
-        <div className="gnx-whiteout-hero-grid">
-
-          {filtered.map((hero, index) => (
-            <article
-              className="gnx-whiteout-hero-card"
-              key={hero.id || hero.slug || `${hero.name}-${index}`}
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
             >
-
-              <div className="gnx-whiteout-hero-image">
-
-                {hero.image ? (
-                  <img
-                    src={hero.image}
-                    alt={`${hero.name} - Whiteout Survival`}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="gnx-whiteout-hero-placeholder">
-                    {String.fromCodePoint(0x1f9b8)}
-                  </div>
-                )}
-
-                {hero.rarity && (
-                  <span className="gnx-whiteout-hero-rarity">
-                    {hero.rarity}
-                  </span>
-                )}
-
-                {hero.generation && (
-                  <span className="gnx-whiteout-hero-generation">
-                    Gen {hero.generation}
-                  </span>
-                )}
-
-              </div>
-
-              <div className="gnx-whiteout-hero-body">
-
-                <h3>{hero.name}</h3>
-
-                <div className="gnx-whiteout-hero-meta">
-
-                  {hero.role && (
-                    <span>{hero.role}</span>
-                  )}
-
-                  {hero.rarity && (
-                    <span>{hero.rarity}</span>
-                  )}
-
-                  {hero.generation && (
-                    <span>Gen {hero.generation}</span>
-                  )}
-
-                </div>
-
-                {hero.description && (
-                  <p className="gnx-whiteout-hero-description">
-                    {hero.description}
-                  </p>
-                )}
-
-              </div>
-
-            </article>
-          ))}
-
-        </div>
-
-        {!filtered.length && (
-          <div className="gnx-whiteout-empty">
-            No heroes found for the selected filters.
-          </div>
-        )}
-
-      </section>
-    </>
-  )
-}
-
-function SpeedupCalculator() {
-  const [days, setDays] = useState('')
-  const [hours, setHours] = useState('')
-  const [minutes, setMinutes] = useState('')
-
-  const totalMinutes =
-    (Number(days) || 0) * 1440 +
-    (Number(hours) || 0) * 60 +
-    (Number(minutes) || 0)
-
-  const resultDays = Math.floor(totalMinutes / 1440)
-  const resultHours = Math.floor((totalMinutes % 1440) / 60)
-  const resultMinutes = totalMinutes % 60
-
-  return (
-    <div className="whiteout-calculator-card">
-      <h3>Speedup Calculator</h3>
-      <p>Convert days, hours and minutes into a total speedup duration.</p>
-
-      <div className="whiteout-calc-inputs">
-        <input
-          type="number"
-          min="0"
-          value={days}
-          onChange={e => setDays(e.target.value)}
-          placeholder="Days"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={hours}
-          onChange={e => setHours(e.target.value)}
-          placeholder="Hours"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={minutes}
-          onChange={e => setMinutes(e.target.value)}
-          placeholder="Minutes"
-        />
+              {ICONS.close}
+            </button>
+          )}
+        </label>
       </div>
 
-      <div className="whiteout-calc-result">
-        {resultDays}d {resultHours}h {resultMinutes}m
-      </div>
-
-      <small>{totalMinutes.toLocaleString()} total minutes</small>
-    </div>
-  )
-}
-
-function ResourceCalculator() {
-  const [wood, setWood] = useState('')
-  const [coal, setCoal] = useState('')
-  const [iron, setIron] = useState('')
-  const [meat, setMeat] = useState('')
-
-  const total =
-    (Number(wood) || 0) +
-    (Number(coal) || 0) +
-    (Number(iron) || 0) +
-    (Number(meat) || 0)
-
-  return (
-    <div className="whiteout-calculator-card">
-      <h3>Resource Calculator</h3>
-      <p>
-        Enter resource amounts to calculate your combined resource total.
-      </p>
-
-      <div className="whiteout-calc-inputs whiteout-calc-four">
-        <input
-          type="number"
-          min="0"
-          value={wood}
-          onChange={e => setWood(e.target.value)}
-          placeholder="Wood"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={coal}
-          onChange={e => setCoal(e.target.value)}
-          placeholder="Coal"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={iron}
-          onChange={e => setIron(e.target.value)}
-          placeholder="Iron"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={meat}
-          onChange={e => setMeat(e.target.value)}
-          placeholder="Meat"
-        />
-      </div>
-
-      <div className="whiteout-calc-result">
-        {total.toLocaleString()} total resources
-      </div>
-    </div>
-  )
-}
-
-function TroopPlanner() {
-  const [infantry, setInfantry] = useState('')
-  const [lancer, setLancer] = useState('')
-  const [marksman, setMarksman] = useState('')
-
-  const total =
-    (Number(infantry) || 0) +
-    (Number(lancer) || 0) +
-    (Number(marksman) || 0)
-
-  return (
-    <div className="whiteout-calculator-card">
-      <h3>Troop Planner</h3>
-      <p>
-        Plan your Infantry, Lancer and Marksman troop counts.
-      </p>
-
-      <div className="whiteout-calc-inputs">
-        <input
-          type="number"
-          min="0"
-          value={infantry}
-          onChange={e => setInfantry(e.target.value)}
-          placeholder="Infantry"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={lancer}
-          onChange={e => setLancer(e.target.value)}
-          placeholder="Lancer"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={marksman}
-          onChange={e => setMarksman(e.target.value)}
-          placeholder="Marksman"
-        />
-      </div>
-
-      <div className="whiteout-calc-result">
-        {total.toLocaleString()} total troops
-      </div>
-    </div>
-  )
-}
-
-function CalculatorsPage() {
-  return (
-    <section className="whiteout-calculators">
-      <div className="whiteout-tool-intro">
-        <span className="whiteout-section-kicker">
-          WHITEOUT SURVIVAL TOOLS
-        </span>
-
-        <h2>Whiteout Survival Calculators</h2>
-
-        <p>
-          Use these GameNexa tools to calculate speedups, resources and troop planning.
-        </p>
-      </div>
-
-      <div className="whiteout-calculator-grid">
-        <ResourceCalculator />
-        <SpeedupCalculator />
-        <TroopPlanner />
-      </div>
-    </section>
-  )
-}
-
-function BattleMapsPage() {
-  const [map, setMap] = useState('foundry')
-  const [fullscreen, setFullscreen] = useState(false)
-
-  const maps = {
-    foundry: {
-      title: 'Foundry Battle Map',
-      image: '/maps/foundry-battle-4k.jpg',
-      description:
-        'Foundry Battle map for alliance objective and movement planning.',
-    },
-
-    canyon: {
-      title: 'Canyon Clash Map',
-      image: '/maps/canyon-clash-4k.jpg',
-      description:
-        'Canyon Clash map for attack, defense and alliance coordination.',
-    },
-  }
-
-  const current = maps[map]
-
-  return (
-    <section className="whiteout-maps">
-
-      <div className="whiteout-tool-intro">
-        <span className="whiteout-section-kicker">
-          WHITEOUT SURVIVAL MAPS
-        </span>
-
-        <h2>Battle Maps</h2>
-
-        <p>
-          Use the available battle maps for Foundry Battle and Canyon Clash planning.
-        </p>
-      </div>
-
-      <div className="whiteout-map-tabs">
-        {Object.entries(maps).map(([id, item]) => (
+      <div className="wo-map-filters">
+        {MAP_TYPES.map((filter) => (
           <button
-            key={id}
-            className={map === id ? 'active' : ''}
-            onClick={() => setMap(id)}
+            type="button"
+            key={filter.id}
+            className={mapType === filter.id ? 'active' : ''}
+            onClick={() => {
+              setMapType(filter.id)
+              setSelected(null)
+            }}
           >
-            {item.title}
+            <span>{filter.icon}</span>
+            {filter.name}
+
+            {filter.id !== 'all' && counts[filter.id] ? (
+              <small>{counts[filter.id]}</small>
+            ) : null}
           </button>
         ))}
       </div>
 
-      <div className="whiteout-map-card">
+      <div className="wo-map-layout">
+        <div className="wo-map-card">
+          <div className="wo-map-header">
+            <div>
+              <strong>
+                {state === 'Generic'
+                  ? 'Generic State Map'
+                  : `State ${state} Map`}
+              </strong>
 
-        <div className="whiteout-map-card-head">
-          <div>
-            <h3>{current.title}</h3>
-            <p>{current.description}</p>
+              <span>
+                {filteredLocations.length} locations shown
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="wo-legend-toggle"
+              onClick={() => setShowLegend((value) => !value)}
+            >
+              {showLegend ? 'Hide Legend' : 'Show Legend'}
+            </button>
           </div>
 
-          <button
-            className="whiteout-map-fullscreen"
-            onClick={() => setFullscreen(true)}
-          >
-            ⛶ Fullscreen
-          </button>
+          <div className="wo-map-canvas">
+            <div className="wo-map-snow-layer" />
+
+            <div className="wo-map-grid">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <span key={`v-${index}`} />
+              ))}
+
+              {Array.from({ length: 10 }).map((_, index) => (
+                <span key={`h-${index}`} />
+              ))}
+            </div>
+
+            <div className="wo-map-compass">
+              <span>N</span>
+              <div>↑</div>
+            </div>
+
+            <div className="wo-map-title-badge">
+              <span>{ICONS.snow}</span>
+              {state === 'Generic' ? 'GENERIC' : `STATE ${state}`}
+            </div>
+
+            <div className="wo-map-road road-a" />
+            <div className="wo-map-road road-b" />
+            <div className="wo-map-road road-c" />
+            <div className="wo-map-road road-d" />
+
+            <div className="wo-map-center-zone">
+              <span>{ICONS.castle}</span>
+              <strong>CAPITAL ZONE</strong>
+            </div>
+
+            {filteredLocations.map((item) => (
+              <MapMarker
+                key={item.id}
+                item={item}
+                selected={selected?.id === item.id}
+                onClick={setSelected}
+              />
+            ))}
+
+            {filteredLocations.length === 0 && (
+              <div className="wo-map-empty">
+                <div>{ICONS.search}</div>
+                <strong>No locations found</strong>
+                <span>Try another search or filter.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="wo-map-footer">
+            <span>
+              <b>{filteredLocations.length}</b> markers
+            </span>
+
+            <span>
+              {state === 'Generic'
+                ? 'Generic planning map'
+                : `Planning map for State ${state}`}
+            </span>
+          </div>
         </div>
 
-        <div className="whiteout-map-image-wrap">
-          <img
-            src={current.image}
-            alt={current.title}
-          />
-        </div>
+        <aside className={`wo-map-sidebar ${showLegend ? '' : 'hidden'}`}>
+          {selected ? (
+            <div className="wo-location-detail">
+              <button
+                type="button"
+                className="wo-detail-close"
+                onClick={() => setSelected(null)}
+              >
+                {ICONS.close}
+              </button>
 
+              <div className={`wo-detail-icon wo-marker-${selected.type}`}>
+                {TYPE_META[selected.type].icon}
+              </div>
+
+              <span className="wo-detail-type">
+                {TYPE_META[selected.type].label}
+              </span>
+
+              <h3>{selected.name}</h3>
+
+              <p>{selected.description}</p>
+
+              <div className="wo-detail-state">
+                <span>Map</span>
+                <strong>
+                  {state === 'Generic' ? 'Generic' : `State ${state}`}
+                </strong>
+              </div>
+
+              <button
+                type="button"
+                className="wo-clear-selection"
+                onClick={() => setSelected(null)}
+              >
+                Back to Map
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="wo-sidebar-heading">
+                <div>
+                  <span>{ICONS.pin}</span>
+                  <strong>Map Legend</strong>
+                </div>
+
+                <small>{state === 'Generic' ? 'Generic' : `State ${state}`}</small>
+              </div>
+
+              <div className="wo-legend-list">
+                {MAP_TYPES.slice(1).map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => {
+                      setMapType(item.id)
+                      setSelected(null)
+                    }}
+                  >
+                    <span className={`wo-legend-icon wo-marker-${item.id}`}>
+                      {item.icon}
+                    </span>
+
+                    <span>{item.name}</span>
+
+                    <b>{counts[item.id]}</b>
+                  </button>
+                ))}
+              </div>
+
+              <div className="wo-map-tip">
+                <strong>Map Tip</strong>
+                <p>
+                  Click any marker to inspect its location. Use the filters
+                  above to isolate specific strategic objectives.
+                </p>
+              </div>
+            </>
+          )}
+        </aside>
+      </div>
+    </>
+  )
+}
+
+function MapStats() {
+  return (
+    <div className="wo-map-stats">
+      <div>
+        <strong>4</strong>
+        <span>Fortress Zones</span>
       </div>
 
-      {fullscreen && (
-        <div
-          className="whiteout-map-modal"
-          onClick={() => setFullscreen(false)}
-        >
-          <button
-            className="whiteout-map-close"
-            onClick={() => setFullscreen(false)}
-          >
-            ✕
-          </button>
+      <div>
+        <strong>6</strong>
+        <span>Strongholds</span>
+      </div>
 
-          <img
-            src={current.image}
-            alt={current.title}
-            onClick={event => event.stopPropagation()}
-          />
+      <div>
+        <strong>4</strong>
+        <span>Facilities</span>
+      </div>
+
+      <div>
+        <strong>1</strong>
+        <span>Sunfire Castle</span>
+      </div>
+
+      <div>
+        <strong>4</strong>
+        <span>Resource Zones</span>
+      </div>
+
+      <div>
+        <strong>2</strong>
+        <span>Event Areas</span>
+      </div>
+    </div>
+  )
+}
+
+function HeroesPreview() {
+  const heroes = Array.isArray(whiteoutHeroes)
+    ? whiteoutHeroes.slice(0, 6)
+    : []
+
+  if (!heroes.length) return null
+
+  return (
+    <section className="wo-bottom-section">
+      <div className="wo-section-heading">
+        <div>
+          <span className="wo-eyebrow">BUILD YOUR ROSTER</span>
+          <h2>{ICONS.hero} Whiteout Survival Heroes</h2>
+          <p>
+            Open the complete hero database for generations, roles, rarity and
+            hero information.
+          </p>
         </div>
-      )}
 
+        <Link to="/game/whiteout-survival/heroes" className="wo-view-all">
+          View Heroes {ICONS.arrow}
+        </Link>
+      </div>
+
+      <div className="wo-mini-heroes">
+        {heroes.map((hero, index) => {
+          const name =
+            hero?.name ||
+            hero?.title ||
+            hero?.heroName ||
+            `Hero ${index + 1}`
+
+          const image =
+            hero?.image ||
+            hero?.img ||
+            hero?.portrait ||
+            hero?.icon ||
+            ''
+
+          return (
+            <Link
+              key={hero?.id || hero?.slug || `${name}-${index}`}
+              to="/game/whiteout-survival/heroes"
+              className="wo-mini-hero"
+            >
+              <div className="wo-mini-hero-image">
+                {image ? (
+                  <img src={image} alt={name} loading="lazy" />
+                ) : (
+                  <span>{ICONS.hero}</span>
+                )}
+              </div>
+
+              <strong>{name}</strong>
+            </Link>
+          )
+        })}
+      </div>
     </section>
   )
 }
 
-function GenericSection({ data }) {
-  return (
-    <>
-      {data.headings.map(([heading, text]) => (
-        <article
-          className="whiteout-seo-section"
-          key={heading}
-        >
-          <h2>{heading}</h2>
-          <p>{text}</p>
-        </article>
-      ))}
-
-      <section className="whiteout-seo-section">
-        <h2>Whiteout Survival {data.shortTitle} Guide</h2>
-
-        <p>
-          GameNexa organizes Whiteout Survival information into dedicated,
-          searchable resources designed for players and alliance leaders.
-        </p>
-
-        <p>
-          This page is part of the GameNexa Whiteout Survival knowledge base.
-        </p>
-      </section>
-    </>
-  )
-}
-
-function WhiteoutSectionPage() {
+export default function WhiteoutSectionPage() {
   const { section } = useParams()
 
-  /* ============================================================
-     HEROES PAGE
-     ============================================================ */
+  const currentSection = String(section || '').toLowerCase()
 
-  if (section === 'heroes') {
+  const isMaps =
+    currentSection === 'battle-maps' ||
+    currentSection === 'maps'
+
+  if (!isMaps) {
     return (
-      <>
-        <SEO
-          title="Whiteout Survival Heroes | Hero Database"
-          description="Browse the Whiteout Survival hero database on GameNexa with searchable heroes, roles, generations and practical information."
-          keywords="Whiteout Survival heroes, Whiteout Survival hero database, hero guide, hero roles, hero generations"
-          canonical={`${BASE}/heroes`}
+      <main className="wo-page-shell">
+        <style>{PAGE_STYLES}</style>
+
+        <SectionHero
+          icon={ICONS.map}
+          title={
+            currentSection === 'heroes'
+              ? 'Whiteout Survival Heroes'
+              : currentSection === 'calculators'
+                ? 'Whiteout Survival Calculators'
+                : currentSection === 'planner'
+                  ? 'Alliance Planner'
+                  : 'Whiteout Survival'
+          }
+          description="Explore GameNexa's Whiteout Survival tools, guides, maps and strategy resources."
         />
 
-        <main className="whiteout-section-page">
+        <div className="wo-fallback-grid">
+          <QuickCard
+            to="/game/whiteout-survival/battle-maps"
+            icon={ICONS.map}
+            title="Battle Maps"
+            description="Generic and State map planning."
+          />
 
-          <div className="whiteout-section-inner">
+          <QuickCard
+            to="/game/whiteout-survival/heroes"
+            icon={ICONS.hero}
+            title="Heroes"
+            description="Explore the complete hero database."
+          />
 
-            <div className="whiteout-breadcrumb">
-              <Link to="/">GameNexa</Link>
-              <span>›</span>
+          <QuickCard
+            to="/game/whiteout-survival/calculators"
+            icon={ICONS.calculator}
+            title="Calculators"
+            description="Upgrade and progression tools."
+          />
 
-              <Link to={BASE}>
-                Whiteout Survival
-              </Link>
-
-              <span>›</span>
-              <span>Heroes</span>
-            </div>
-
-            <HeroDatabase />
-
-          </div>
-
-        </main>
-      </>
-    )
-  }
-
-  /* ============================================================
-     CALCULATORS
-     ============================================================ */
-
-  if (section === 'calculators') {
-    return (
-      <>
-        <SEO
-          title="Whiteout Survival Calculators | GameNexa"
-          description="Use Whiteout Survival calculators for resources, speedups and troop planning on GameNexa."
-          keywords="Whiteout Survival calculator, resource calculator, speedup calculator, troop calculator, progression calculator"
-          canonical={`${BASE}/calculators`}
-        />
-
-        <main className="whiteout-section-page">
-
-          <div className="whiteout-section-inner">
-
-            <div className="whiteout-breadcrumb">
-              <Link to="/">GameNexa</Link>
-              <span>›</span>
-
-              <Link to={BASE}>
-                Whiteout Survival
-              </Link>
-
-              <span>›</span>
-              <span>Calculators</span>
-            </div>
-
-            <CalculatorsPage />
-
-          </div>
-
-        </main>
-      </>
-    )
-  }
-
-  /* ============================================================
-     BATTLE MAPS
-     ============================================================ */
-
-  if (section === 'battle-maps') {
-    return (
-      <>
-        <SEO
-          title="Whiteout Survival Battle Maps | Foundry & Canyon Clash"
-          description="View Whiteout Survival Foundry Battle and Canyon Clash maps for alliance planning and event preparation."
-          keywords="Whiteout Survival map, Whiteout Survival battle map, Foundry map, Canyon Clash map, alliance map"
-          canonical={`${BASE}/battle-maps`}
-        />
-
-        <main className="whiteout-section-page">
-
-          <div className="whiteout-section-inner">
-
-            <div className="whiteout-breadcrumb">
-              <Link to="/">GameNexa</Link>
-              <span>›</span>
-
-              <Link to={BASE}>
-                Whiteout Survival
-              </Link>
-
-              <span>›</span>
-              <span>Battle Maps</span>
-            </div>
-
-            <BattleMapsPage />
-
-          </div>
-
-        </main>
-      </>
-    )
-  }
-
-  /* ============================================================
-     GENERIC WHITEOUT SECTIONS
-     ============================================================ */
-
-  const data = SECTIONS[section]
-
-  if (!data) {
-    return (
-      <main className="whiteout-section-page">
-
-        <div className="whiteout-section-inner">
-
-          <h1>
-            Whiteout Survival Page Not Found
-          </h1>
-
-          <Link to={BASE}>
-            Open Whiteout Survival
-          </Link>
-
+          <QuickCard
+            to="/game/whiteout-survival/planner"
+            icon={ICONS.planner}
+            title="Alliance Planner"
+            description="Plan alliance objectives and activities."
+          />
         </div>
-
       </main>
     )
-  }
-
-  const path = `${BASE}/${section}`
-
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: data.title,
-    description: data.description,
-    keywords: data.keywords,
-    url: `https://gamenexa.gamenexa.workers.dev${path}`,
-    publisher: {
-      '@type': 'Organization',
-      name: 'GameNexa',
-    },
   }
 
   return (
-    <>
-      <SEO
-        title={`${data.title} | GameNexa`}
-        description={data.description}
-        keywords={data.keywords}
-        canonical={`https://gamenexa.gamenexa.workers.dev${path}`}
-        jsonLd={jsonLd}
+    <main className="wo-page-shell">
+      <style>{PAGE_STYLES}</style>
+
+      <SectionHero
+        icon={ICONS.map}
+        title="Whiteout Survival Battle Maps"
+        description="Explore Generic and State maps for Fortresses, Strongholds, Facilities, Sunfire Castle, Resources, Alliance Territory and Events."
       />
 
-      <main className="whiteout-section-page">
+      <div className="wo-breadcrumb">
+        <Link to="/game/whiteout-survival/">Whiteout Survival</Link>
+        <span>{ICONS.arrow}</span>
+        <strong>Battle Maps</strong>
+      </div>
 
-        <div className="whiteout-section-inner">
-
-          <div className="whiteout-breadcrumb">
-
-            <Link to="/">
-              GameNexa
-            </Link>
-
-            <span>›</span>
-
-            <Link to={BASE}>
-              Whiteout Survival
-            </Link>
-
-            <span>›</span>
-
-            <span>
-              {data.shortTitle}
-            </span>
-
-          </div>
-
-          <header className="whiteout-section-hero">
-
-            <div className="whiteout-section-icon">
-              {data.icon}
-            </div>
-
-            <div>
-
-              <span className="whiteout-section-kicker">
-                WHITEOUT SURVIVAL
-              </span>
-
-              <h1>
-                {data.title}
-              </h1>
-
-              <p>
-                {data.intro}
-              </p>
-
-            </div>
-
-          </header>
-
-          <div className="whiteout-section-content">
-
-            <div className="whiteout-main-column">
-
-              <GenericSection
-                data={data}
-                section={section}
-              />
-
-            </div>
-
-            <aside className="whiteout-section-sidebar">
-
-              <div className="whiteout-sidebar-card">
-
-                <span className="whiteout-section-kicker">
-                  WHITEOUT SURVIVAL HUB
-                </span>
-
-                <h2>
-                  Explore Whiteout Survival
-                </h2>
-
-                <div className="whiteout-related-links">
-
-                  {Object.entries(SECTIONS).map(([slug, item]) => (
-                    <Link
-                      key={slug}
-                      to={`${BASE}/${slug}`}
-                      className={slug === section ? 'active' : ''}
-                    >
-                      <span>
-                        {item.icon}
-                      </span>
-
-                      {item.shortTitle}
-                    </Link>
-                  ))}
-
-                  <Link
-                    to={`${BASE}/heroes`}
-                    className={section === 'heroes' ? 'active' : ''}
-                  >
-                    <span>
-                      🦸
-                    </span>
-
-                    Heroes
-                  </Link>
-
-                  <Link
-                    to={`${BASE}/battle-maps`}
-                    className={section === 'battle-maps' ? 'active' : ''}
-                  >
-                    <span>
-                      🗺️
-                    </span>
-
-                    Battle Maps
-                  </Link>
-
-                </div>
-
-                <Link
-                  className="whiteout-section-button"
-                  to={BASE}
-                >
-                  Open Whiteout Hub
-                </Link>
-
-              </div>
-
-            </aside>
-
-          </div>
-
+      <div className="wo-map-intro">
+        <div>
+          <span className="wo-eyebrow">STATE WARFARE TOOL</span>
+          <h2>Plan Your State Map</h2>
+          <p>
+            Select a State, filter strategic locations and click markers to
+            inspect important map objectives. The Generic map can be used for
+            alliance planning before adding state-specific coordinates.
+          </p>
         </div>
 
-      </main>
-    </>
+        <div className="wo-intro-badge">
+          <span>{ICONS.snow}</span>
+          <strong>TACTICAL MAP</strong>
+          <small>Generic + State Maps</small>
+        </div>
+      </div>
+
+      <MapStats />
+
+      <BattleMap />
+
+      <section className="wo-tools-section">
+        <div className="wo-section-heading">
+          <div>
+            <span className="wo-eyebrow">MORE TOOLS</span>
+            <h2>Whiteout Survival Tools</h2>
+            <p>
+              Continue from the map into the rest of the GameNexa Whiteout
+              Survival hub.
+            </p>
+          </div>
+        </div>
+
+        <div className="wo-tools-grid">
+          <QuickCard
+            to="/game/whiteout-survival/heroes"
+            icon={ICONS.hero}
+            title="Heroes"
+            description="Hero database, roles, rarity and generations."
+          />
+
+          <QuickCard
+            to="/game/whiteout-survival/calculators"
+            icon={ICONS.calculator}
+            title="Calculators"
+            description="Useful progression and upgrade calculators."
+          />
+
+          <QuickCard
+            to="/game/whiteout-survival/planner"
+            icon={ICONS.planner}
+            title="Alliance Planner"
+            description="Organize objectives and alliance activities."
+          />
+
+          <QuickCard
+            to="/game/whiteout-survival/guides"
+            icon={ICONS.guide}
+            title="Whiteout Guides"
+            description="Guides, strategies and event information."
+          />
+        </div>
+      </section>
+
+      <HeroesPreview />
+
+      <section className="wo-bottom-section wo-map-note">
+        <div className="wo-note-icon">{ICONS.map}</div>
+
+        <div>
+          <strong>About the Battle Map</strong>
+          <p>
+            The current map provides a clean planning layer for GameNexa.
+            Generic coordinates are intentionally separated from State
+            selection so state-specific map data can be expanded later without
+            changing the interface.
+          </p>
+        </div>
+      </section>
+    </main>
   )
 }
 
-export { SECTIONS }
+const PAGE_STYLES = `
+.wo-page-shell {
+  width: min(1400px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 28px 0 70px;
+  color: #eaf2f8;
+}
 
-export default WhiteoutSectionPage
+.wo-section-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid rgba(150, 205, 235, .16);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(89, 179, 226, .14), transparent 32%),
+    linear-gradient(135deg, rgba(17, 38, 54, .98), rgba(9, 21, 31, .98));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .18);
+}
+
+.wo-section-hero-icon {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  font-size: 39px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+.wo-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  color: #82c8eb;
+}
+
+.wo-section-hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.05;
+}
+
+.wo-section-hero p {
+  max-width: 850px;
+  margin: 0;
+  color: #a9bac6;
+  line-height: 1.65;
+}
+
+.wo-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 18px 2px;
+  font-size: 13px;
+  color: #8296a4;
+}
+
+.wo-breadcrumb a {
+  color: #8bcdf0;
+  text-decoration: none;
+}
+
+.wo-map-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 25px;
+  margin: 20px 0 18px;
+  padding: 25px;
+  border: 1px solid rgba(150,205,235,.12);
+  border-radius: 20px;
+  background: rgba(11,27,39,.72);
+}
+
+.wo-map-intro h2 {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+.wo-map-intro p {
+  max-width: 850px;
+  margin: 0;
+  color: #9fb1bd;
+  line-height: 1.65;
+}
+
+.wo-intro-badge {
+  min-width: 180px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 17px;
+  border-radius: 16px;
+  background: rgba(122, 191, 226, .08);
+  border: 1px solid rgba(122, 191, 226, .14);
+}
+
+.wo-intro-badge span {
+  font-size: 28px;
+  margin-bottom: 5px;
+}
+
+.wo-intro-badge strong {
+  font-size: 12px;
+  letter-spacing: .12em;
+}
+
+.wo-intro-badge small {
+  margin-top: 4px;
+  color: #8298a7;
+}
+
+.wo-map-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.wo-map-stats > div {
+  padding: 16px 10px;
+  text-align: center;
+  border: 1px solid rgba(150,205,235,.11);
+  border-radius: 15px;
+  background: rgba(11,27,39,.7);
+}
+
+.wo-map-stats strong {
+  display: block;
+  font-size: 23px;
+}
+
+.wo-map-stats span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #8298a7;
+}
+
+.wo-map-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.wo-state-selector,
+.wo-map-search {
+  min-height: 50px;
+  border: 1px solid rgba(150,205,235,.13);
+  border-radius: 14px;
+  background: rgba(9,22,32,.94);
+}
+
+.wo-state-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 15px;
+}
+
+.wo-state-selector span {
+  color: #8095a4;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wo-state-selector select {
+  border: 0;
+  outline: 0;
+  color: #eaf4f9;
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wo-state-selector option {
+  background: #10202b;
+  color: white;
+}
+
+.wo-map-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.wo-map-search > span {
+  margin-right: 9px;
+  color: #7cbfe1;
+  font-size: 18px;
+}
+
+.wo-map-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e9f2f6;
+  font-size: 14px;
+}
+
+.wo-map-search input::placeholder {
+  color: #617581;
+}
+
+.wo-map-search button {
+  border: 0;
+  background: transparent;
+  color: #7e929e;
+  cursor: pointer;
+}
+
+.wo-map-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 0;
+}
+
+.wo-map-filters button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  white-space: nowrap;
+  border: 1px solid rgba(150,205,235,.12);
+  border-radius: 11px;
+  background: rgba(12,27,38,.76);
+  color: #91a5b1;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.wo-map-filters button:hover,
+.wo-map-filters button.active {
+  color: #eaf7fc;
+  border-color: rgba(110,193,232,.42);
+  background: rgba(62,139,181,.17);
+}
+
+.wo-map-filters small {
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.07);
+  color: #91a9b6;
+}
+
+.wo-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 15px;
+}
+
+.wo-map-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(150,205,235,.13);
+  border-radius: 20px;
+  background: #091721;
+}
+
+.wo-map-header,
+.wo-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 17px;
+  background: rgba(255,255,255,.025);
+}
+
+.wo-map-header {
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.wo-map-header strong {
+  display: block;
+  font-size: 14px;
+}
+
+.wo-map-header span {
+  display: block;
+  margin-top: 3px;
+  color: #708591;
+  font-size: 11px;
+}
+
+.wo-legend-toggle {
+  padding: 7px 10px;
+  border: 1px solid rgba(150,205,235,.14);
+  border-radius: 9px;
+  background: rgba(255,255,255,.035);
+  color: #9db1bc;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.wo-map-canvas {
+  position: relative;
+  min-height: 650px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(103,183,220,.17), transparent 23%),
+    radial-gradient(circle at 15% 20%, rgba(124,183,211,.08), transparent 25%),
+    radial-gradient(circle at 85% 80%, rgba(124,183,211,.08), transparent 25%),
+    #10232e;
+}
+
+.wo-map-snow-layer {
+  position: absolute;
+  inset: 0;
+  opacity: .65;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 25px 25px, 41px 41px;
+  background-position: 0 0, 13px 17px;
+}
+
+.wo-map-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .13;
+  pointer-events: none;
+}
+
+.wo-map-grid span {
+  position: absolute;
+  background: rgba(180,225,243,.5);
+}
+
+.wo-map-grid span:nth-child(-n+10) {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.wo-map-grid span:nth-child(n+11) {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.wo-map-grid span:nth-child(1) { left: 10%; }
+.wo-map-grid span:nth-child(2) { left: 20%; }
+.wo-map-grid span:nth-child(3) { left: 30%; }
+.wo-map-grid span:nth-child(4) { left: 40%; }
+.wo-map-grid span:nth-child(5) { left: 50%; }
+.wo-map-grid span:nth-child(6) { left: 60%; }
+.wo-map-grid span:nth-child(7) { left: 70%; }
+.wo-map-grid span:nth-child(8) { left: 80%; }
+.wo-map-grid span:nth-child(9) { left: 90%; }
+.wo-map-grid span:nth-child(10) { left: 100%; }
+
+.wo-map-grid span:nth-child(11) { top: 10%; }
+.wo-map-grid span:nth-child(12) { top: 20%; }
+.wo-map-grid span:nth-child(13) { top: 30%; }
+.wo-map-grid span:nth-child(14) { top: 40%; }
+.wo-map-grid span:nth-child(15) { top: 50%; }
+.wo-map-grid span:nth-child(16) { top: 60%; }
+.wo-map-grid span:nth-child(17) { top: 70%; }
+.wo-map-grid span:nth-child(18) { top: 80%; }
+.wo-map-grid span:nth-child(19) { top: 90%; }
+.wo-map-grid span:nth-child(20) { top: 100%; }
+
+.wo-map-road {
+  position: absolute;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(208,230,239,.16);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.road-a {
+  width: 85%;
+  left: 7%;
+  top: 50%;
+  transform: rotate(0deg);
+}
+
+.road-b {
+  width: 85%;
+  left: 7%;
+  top: 50%;
+  transform: rotate(90deg);
+}
+
+.road-c {
+  width: 65%;
+  left: 18%;
+  top: 50%;
+  transform: rotate(35deg);
+}
+
+.road-d {
+  width: 65%;
+  left: 18%;
+  top: 50%;
+  transform: rotate(-35deg);
+}
+
+.wo-map-center-zone {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 125px;
+  height: 125px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  border: 2px dashed rgba(173,219,237,.23);
+  background: rgba(116,180,210,.06);
+  color: rgba(215,237,246,.45);
+  pointer-events: none;
+}
+
+.wo-map-center-zone span {
+  font-size: 29px;
+}
+
+.wo-map-center-zone strong {
+  margin-top: 5px;
+  font-size: 8px;
+  letter-spacing: .13em;
+}
+
+.wo-map-title-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgba(5,15,22,.82);
+  border: 1px solid rgba(150,205,235,.12);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.wo-map-compass {
+  position: absolute;
+  right: 15px;
+  top: 14px;
+  z-index: 4;
+  width: 38px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: rgba(5,15,22,.82);
+  border: 1px solid rgba(150,205,235,.12);
+  color: #9dbbc8;
+  font-size: 11px;
+}
+
+.wo-map-compass div {
+  font-size: 18px;
+  line-height: 15px;
+}
+
+.wo-map-marker {
+  position: absolute;
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255,255,255,.25);
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0,0,0,.32);
+  transition: .18s ease;
+}
+
+.wo-map-marker:hover,
+.wo-map-marker.is-selected {
+  z-index: 20;
+  transform: translate(-50%, -50%) scale(1.18);
+  border-color: white;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.07), 0 9px 25px rgba(0,0,0,.4);
+}
+
+.wo-marker-icon {
+  font-size: 14px;
+  line-height: 15px;
+}
+
+.wo-marker-label {
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 8px;
+}
+
+.wo-map-marker.wo-marker-fortress,
+.wo-detail-icon.wo-marker-fortress,
+.wo-legend-icon.wo-marker-fortress {
+  background: rgba(154,79,76,.9);
+}
+
+.wo-map-marker.wo-marker-stronghold,
+.wo-detail-icon.wo-marker-stronghold,
+.wo-legend-icon.wo-marker-stronghold {
+  background: rgba(102,82,154,.9);
+}
+
+.wo-map-marker.wo-marker-facility,
+.wo-detail-icon.wo-marker-facility,
+.wo-legend-icon.wo-marker-facility {
+  background: rgba(50,127,157,.9);
+}
+
+.wo-map-marker.wo-marker-castle,
+.wo-detail-icon.wo-marker-castle,
+.wo-legend-icon.wo-marker-castle {
+  background: rgba(173,123,50,.95);
+}
+
+.wo-map-marker.wo-marker-resource,
+.wo-detail-icon.wo-marker-resource,
+.wo-legend-icon.wo-marker-resource {
+  background: rgba(62,129,79,.9);
+}
+
+.wo-map-marker.wo-marker-territory,
+.wo-detail-icon.wo-marker-territory,
+.wo-legend-icon.wo-marker-territory {
+  background: rgba(53,120,144,.9);
+}
+
+.wo-map-marker.wo-marker-event,
+.wo-detail-icon.wo-marker-event,
+.wo-legend-icon.wo-marker-event {
+  background: rgba(147,75,124,.9);
+}
+
+.wo-map-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #8197a3;
+  text-align: center;
+}
+
+.wo-map-empty div {
+  margin-bottom: 8px;
+  font-size: 28px;
+}
+
+.wo-map-empty strong {
+  color: #d7e4e9;
+}
+
+.wo-map-empty span {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.wo-map-footer {
+  border-top: 1px solid rgba(255,255,255,.06);
+  color: #708591;
+  font-size: 11px;
+}
+
+.wo-map-footer b {
+  color: #c9dbe3;
+}
+
+.wo-map-sidebar {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(150,205,235,.13);
+  border-radius: 20px;
+  background: #0a1822;
+}
+
+.wo-map-sidebar.hidden {
+  display: none;
+}
+
+.wo-sidebar-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 17px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.wo-sidebar-heading div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wo-sidebar-heading div span {
+  font-size: 17px;
+}
+
+.wo-sidebar-heading strong {
+  font-size: 13px;
+}
+
+.wo-sidebar-heading small {
+  color: #647985;
+  font-size: 10px;
+}
+
+.wo-legend-list {
+  padding: 8px;
+}
+
+.wo-legend-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #9cb0ba;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wo-legend-list button:hover {
+  background: rgba(255,255,255,.04);
+  color: white;
+}
+
+.wo-legend-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  font-size: 14px;
+}
+
+.wo-legend-list b {
+  min-width: 20px;
+  text-align: center;
+  color: #718692;
+  font-size: 11px;
+}
+
+.wo-map-tip {
+  margin: 10px;
+  padding: 14px;
+  border-radius: 13px;
+  background: rgba(93,168,201,.07);
+  border: 1px solid rgba(93,168,201,.12);
+}
+
+.wo-map-tip strong {
+  font-size: 12px;
+}
+
+.wo-map-tip p {
+  margin: 6px 0 0;
+  color: #788e9a;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.wo-location-detail {
+  position: relative;
+  padding: 22px;
+}
+
+.wo-detail-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+  color: #8498a3;
+  cursor: pointer;
+}
+
+.wo-detail-icon {
+  width: 55px;
+  height: 55px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: white;
+  font-size: 25px;
+  margin-bottom: 13px;
+}
+
+.wo-detail-type {
+  display: inline-block;
+  color: #7ebbd9;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.wo-location-detail h3 {
+  margin: 7px 0;
+  font-size: 22px;
+}
+
+.wo-location-detail p {
+  color: #8da1ac;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.wo-detail-state {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 11px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: #718792;
+  font-size: 11px;
+}
+
+.wo-detail-state strong {
+  color: #c9dbe3;
+}
+
+.wo-clear-selection {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(130,195,225,.2);
+  border-radius: 10px;
+  background: rgba(82,155,190,.08);
+  color: #9dcee4;
+  cursor: pointer;
+}
+
+.wo-tools-section,
+.wo-bottom-section {
+  margin-top: 35px;
+}
+
+.wo-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.wo-section-heading h2 {
+  margin: 0 0 7px;
+  font-size: 25px;
+}
+
+.wo-section-heading p {
+  margin: 0;
+  color: #8196a1;
+  font-size: 13px;
+}
+
+.wo-view-all {
+  white-space: nowrap;
+  color: #88c9e9;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.wo-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.wo-quick-card {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid rgba(150,205,235,.12);
+  border-radius: 15px;
+  background: rgba(11,27,39,.72);
+  transition: .18s ease;
+}
+
+.wo-quick-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(120,195,229,.3);
+  background: rgba(20,42,56,.8);
+}
+
+.wo-quick-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(108,184,218,.1);
+  font-size: 21px;
+}
+
+.wo-quick-content {
+  min-width: 0;
+  padding-right: 18px;
+}
+
+.wo-quick-content strong {
+  display: block;
+  font-size: 13px;
+}
+
+.wo-quick-content span {
+  display: block;
+  margin-top: 4px;
+  color: #748995;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.wo-quick-arrow {
+  position: absolute;
+  right: 12px;
+  color: #68808d;
+  font-size: 14px;
+}
+
+.wo-mini-heroes {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.wo-mini-hero {
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid rgba(150,205,235,.12);
+  border-radius: 15px;
+  background: rgba(11,27,39,.72);
+}
+
+.wo-mini-hero-image {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.035);
+}
+
+.wo-mini-hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.wo-mini-hero-image span {
+  font-size: 34px;
+}
+
+.wo-mini-hero strong {
+  display: block;
+  padding: 9px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wo-map-note {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(150,205,235,.1);
+  border-radius: 15px;
+  background: rgba(11,27,39,.55);
+}
+
+.wo-note-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(91,166,202,.1);
+  font-size: 21px;
+}
+
+.wo-map-note strong {
+  display: block;
+  font-size: 13px;
+}
+
+.wo-map-note p {
+  margin: 5px 0 0;
+  color: #788e9a;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.wo-fallback-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1050px) {
+  .wo-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wo-map-sidebar {
+    min-height: 0;
+  }
+
+  .wo-tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wo-mini-heroes {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .wo-map-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .wo-fallback-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .wo-page-shell {
+    width: min(100% - 16px, 1400px);
+    padding-top: 12px;
+  }
+
+  .wo-section-hero {
+    padding: 19px;
+    gap: 13px;
+    border-radius: 17px;
+  }
+
+  .wo-section-hero-icon {
+    width: 55px;
+    height: 55px;
+    flex-basis: 55px;
+    border-radius: 15px;
+    font-size: 28px;
+  }
+
+  .wo-section-hero h1 {
+    font-size: 26px;
+  }
+
+  .wo-section-hero p {
+    font-size: 12px;
+  }
+
+  .wo-map-intro {
+    padding: 17px;
+  }
+
+  .wo-map-intro h2 {
+    font-size: 21px;
+  }
+
+  .wo-intro-badge {
+    display: none;
+  }
+
+  .wo-map-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wo-map-toolbar {
+    flex-direction: column;
+  }
+
+  .wo-state-selector {
+    justify-content: space-between;
+  }
+
+  .wo-map-canvas {
+    min-height: 510px;
+  }
+
+  .wo-map-marker {
+    width: 34px;
+    height: 34px;
+  }
+
+  .wo-map-center-zone {
+    width: 90px;
+    height: 90px;
+  }
+
+  .wo-map-center-zone span {
+    font-size: 22px;
+  }
+
+  .wo-map-center-zone strong {
+    font-size: 6px;
+  }
+
+  .wo-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wo-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wo-mini-heroes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wo-fallback-grid {
+    grid-template-columns: 1fr;
+  }
+}
+`
