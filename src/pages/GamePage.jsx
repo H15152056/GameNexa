@@ -583,23 +583,26 @@ function GamePage() {
         }
 
         .character-modal-background {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-          background-image: var(--character-modal-image);
-          background-size: cover;
-          background-position: center top;
-          background-repeat: no-repeat;
-          transform: scale(1.04);
-          filter: blur(2px);
-          pointer-events: none;
+          position: absolute !important;
+          inset: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          display: block !important;
+          object-fit: cover !important;
+          object-position: center top !important;
+          z-index: 0 !important;
+          opacity: 0.34 !important;
+          filter: blur(1.5px) !important;
+          transform: scale(1.035) !important;
+          pointer-events: none !important;
         }
 
-        .character-modal-background::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(180deg, rgba(7, 9, 18, 0.28) 0%, rgba(7, 9, 18, 0.58) 34%, rgba(7, 9, 18, 0.88) 68%, rgba(7, 9, 18, 0.98) 100%);
+        .character-modal-background-overlay {
+          position: absolute !important;
+          inset: 0 !important;
+          z-index: 1 !important;
+          pointer-events: none !important;
+          background: linear-gradient(180deg, rgba(7, 9, 18, 0.16) 0%, rgba(7, 9, 18, 0.46) 36%, rgba(7, 9, 18, 0.78) 72%, rgba(7, 9, 18, 0.94) 100%) !important;
         }
 
         .character-modal-content {
@@ -611,12 +614,22 @@ function GamePage() {
         .character-modal .modal-header {
           position: relative;
           z-index: 2;
-          background: linear-gradient(180deg, rgba(0, 0, 0, 0.20), rgba(0, 0, 0, 0.08));
+          background: rgba(0, 0, 0, 0.12) !important;
         }
 
         .character-modal .modal-body {
           position: relative;
           z-index: 2;
+          background: transparent !important;
+        }
+
+        .character-modal .modal-section,
+        .character-modal .detail-box,
+        .character-modal .build-box,
+        .character-modal .build-callout,
+        .character-modal .skill-card,
+        .character-modal .modal-body > * {
+          background-color: rgba(10, 16, 28, 0.54) !important;
         }
 
         .character-modal .modal-section,
@@ -1431,17 +1444,14 @@ function GamePage() {
             aria-label={`${getCharacterName(
               selectedCharacter
             )} details`}
-            style={{
-              '--character-modal-image': getCharacterImage(
-                selectedCharacter
-              )
-                ? `url("${getCharacterImage(
-                    selectedCharacter
-                  )}")`
-                : 'none',
-            }}
           >
-            <div className="character-modal-background" />
+            <img
+              className="character-modal-background"
+              src={getCharacterImage(selectedCharacter)}
+              alt=""
+              aria-hidden="true"
+            />
+            <div className="character-modal-background-overlay" />
             <div className="character-modal-content">
             <button
               type="button"
