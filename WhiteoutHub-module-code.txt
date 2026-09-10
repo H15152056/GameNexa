@@ -1,0 +1,126 @@
+﻿
+  src\games\whiteout\WhiteoutHub.jsx:17:  },
+  src\games\whiteout\WhiteoutHub.jsx:18:]
+  src\games\whiteout\WhiteoutHub.jsx:19:
+> src\games\whiteout\WhiteoutHub.jsx:20:const MODULES = {
+  src\games\whiteout\WhiteoutHub.jsx:21:  facilities: {
+  src\games\whiteout\WhiteoutHub.jsx:22:    icon: '🏭',
+  src\games\whiteout\WhiteoutHub.jsx:23:    title: 'Facilities',
+  src\games\whiteout\WhiteoutHub.jsx:24:    intro: 'Important event and state facilities with their purpose, locations and strategic value.',
+  src\games\whiteout\WhiteoutHub.jsx:25:    sections: [
+  src\games\whiteout\WhiteoutHub.jsx:26:      ['Imperial Foundry', 'Major event facility used for alliance competition and objective control.'],
+  src\games\whiteout\WhiteoutHub.jsx:27:      ['Prototype Sites', 'Strategic locations that may become important during event progression.'],
+  src\games\whiteout\WhiteoutHub.jsx:28:      ['Repair Facility', 'Reference point for facility-related objectives and control planning.'],
+  src\games\whiteout\WhiteoutHub.jsx:584:        {active !== 'overview' && (
+  src\games\whiteout\WhiteoutHub.jsx:585:          <button
+  src\games\whiteout\WhiteoutHub.jsx:586:            className="wnx-back"
+> src\games\whiteout\WhiteoutHub.jsx:587:            onClick={() => setActive('overview')}
+  src\games\whiteout\WhiteoutHub.jsx:588:          >
+  src\games\whiteout\WhiteoutHub.jsx:589:            ← Back to Hub
+  src\games\whiteout\WhiteoutHub.jsx:590:          </button>
+  src\games\whiteout\WhiteoutHub.jsx:591:        )}
+  src\games\whiteout\WhiteoutHub.jsx:592:
+  src\games\whiteout\WhiteoutHub.jsx:593:        {active === 'overview' && (
+  src\games\whiteout\WhiteoutHub.jsx:594:          <>
+  src\games\whiteout\WhiteoutHub.jsx:595:            <div className="wnx-overview">
+  src\games\whiteout\WhiteoutHub.jsx:596:              {NAV_ITEMS.map(([id, icon, title]) => {
+> src\games\whiteout\WhiteoutHub.jsx:597:                const module = MODULES[id]
+  src\games\whiteout\WhiteoutHub.jsx:598:
+  src\games\whiteout\WhiteoutHub.jsx:599:                return (
+  src\games\whiteout\WhiteoutHub.jsx:600:                  <button
+  src\games\whiteout\WhiteoutHub.jsx:601:                    className="wnx-overview-card"
+  src\games\whiteout\WhiteoutHub.jsx:602:                    key={id}
+> src\games\whiteout\WhiteoutHub.jsx:603:                    onClick={() => setActive(id)}
+  src\games\whiteout\WhiteoutHub.jsx:604:                  >
+  src\games\whiteout\WhiteoutHub.jsx:605:                    <div className="icon">{icon}</div>
+  src\games\whiteout\WhiteoutHub.jsx:606:
+  src\games\whiteout\WhiteoutHub.jsx:607:                    <h3>{title}</h3>
+  src\games\whiteout\WhiteoutHub.jsx:608:
+  src\games\whiteout\WhiteoutHub.jsx:609:                    <p>
+  src\games\whiteout\WhiteoutHub.jsx:610:                      {module?.intro ||
+  src\games\whiteout\WhiteoutHub.jsx:611:                        'Tools and information for Whiteout Survival.'}
+  src\games\whiteout\WhiteoutHub.jsx:616:
+  src\games\whiteout\WhiteoutHub.jsx:617:              <button
+  src\games\whiteout\WhiteoutHub.jsx:618:                className="wnx-overview-card"
+> src\games\whiteout\WhiteoutHub.jsx:619:                onClick={() => setActive('maps')}
+  src\games\whiteout\WhiteoutHub.jsx:620:              >
+  src\games\whiteout\WhiteoutHub.jsx:621:                <div className="icon">🗺️</div>
+  src\games\whiteout\WhiteoutHub.jsx:622:
+  src\games\whiteout\WhiteoutHub.jsx:623:                <h3>Battle Maps</h3>
+  src\games\whiteout\WhiteoutHub.jsx:624:
+  src\games\whiteout\WhiteoutHub.jsx:625:                <p>
+  src\games\whiteout\WhiteoutHub.jsx:626:                  View available Foundry Battle and
+  src\games\whiteout\WhiteoutHub.jsx:627:                  Canyon Clash map images for planning.
+  src\games\whiteout\WhiteoutHub.jsx:643:                        ? 'active'
+  src\games\whiteout\WhiteoutHub.jsx:644:                        : ''
+  src\games\whiteout\WhiteoutHub.jsx:645:                    }`}
+> src\games\whiteout\WhiteoutHub.jsx:646:                    onClick={() =>
+  src\games\whiteout\WhiteoutHub.jsx:647:                      setActiveMap(item.id)
+  src\games\whiteout\WhiteoutHub.jsx:648:                    }
+  src\games\whiteout\WhiteoutHub.jsx:649:                  >
+  src\games\whiteout\WhiteoutHub.jsx:650:                    <strong>
+  src\games\whiteout\WhiteoutHub.jsx:651:                      {item.icon} {item.title}
+  src\games\whiteout\WhiteoutHub.jsx:652:                    </strong>
+  src\games\whiteout\WhiteoutHub.jsx:653:
+  src\games\whiteout\WhiteoutHub.jsx:654:                    <span>{item.subtitle}</span>
+  src\games\whiteout\WhiteoutHub.jsx:668:
+  src\games\whiteout\WhiteoutHub.jsx:669:                <button
+  src\games\whiteout\WhiteoutHub.jsx:670:                  className="wnx-map-fs"
+> src\games\whiteout\WhiteoutHub.jsx:671:                  onClick={() =>
+  src\games\whiteout\WhiteoutHub.jsx:672:                    setFullscreen(true)
+  src\games\whiteout\WhiteoutHub.jsx:673:                  }
+  src\games\whiteout\WhiteoutHub.jsx:674:                >
+  src\games\whiteout\WhiteoutHub.jsx:675:                  ⛶ Fullscreen
+  src\games\whiteout\WhiteoutHub.jsx:676:                </button>
+  src\games\whiteout\WhiteoutHub.jsx:677:              </div>
+  src\games\whiteout\WhiteoutHub.jsx:678:
+  src\games\whiteout\WhiteoutHub.jsx:679:              <div className="wnx-map-info">
+  src\games\whiteout\WhiteoutHub.jsx:744:        {active !== 'overview' &&
+  src\games\whiteout\WhiteoutHub.jsx:745:          active !== 'maps' &&
+  src\games\whiteout\WhiteoutHub.jsx:746:          active !== 'calculators' &&
+> src\games\whiteout\WhiteoutHub.jsx:747:          MODULES[active] && (
+  src\games\whiteout\WhiteoutHub.jsx:748:            <div className="wnx-detail">
+  src\games\whiteout\WhiteoutHub.jsx:749:              <div className="wnx-detail-header">
+  src\games\whiteout\WhiteoutHub.jsx:750:                <div className="wnx-detail-icon">
+> src\games\whiteout\WhiteoutHub.jsx:751:                  {MODULES[active].icon}
+  src\games\whiteout\WhiteoutHub.jsx:752:                </div>
+  src\games\whiteout\WhiteoutHub.jsx:753:
+  src\games\whiteout\WhiteoutHub.jsx:754:                <div>
+  src\games\whiteout\WhiteoutHub.jsx:755:                  <div className="wnx-kicker">
+  src\games\whiteout\WhiteoutHub.jsx:756:                    WHITEOUT SURVIVAL
+  src\games\whiteout\WhiteoutHub.jsx:757:                  </div>
+  src\games\whiteout\WhiteoutHub.jsx:758:
+  src\games\whiteout\WhiteoutHub.jsx:759:                  <h3>
+> src\games\whiteout\WhiteoutHub.jsx:760:                    {MODULES[active].title}
+  src\games\whiteout\WhiteoutHub.jsx:761:                  </h3>
+  src\games\whiteout\WhiteoutHub.jsx:762:
+  src\games\whiteout\WhiteoutHub.jsx:763:                  <p className="wnx-detail-intro">
+> src\games\whiteout\WhiteoutHub.jsx:764:                    {MODULES[active].intro}
+  src\games\whiteout\WhiteoutHub.jsx:765:                  </p>
+  src\games\whiteout\WhiteoutHub.jsx:766:                </div>
+  src\games\whiteout\WhiteoutHub.jsx:767:              </div>
+  src\games\whiteout\WhiteoutHub.jsx:768:
+  src\games\whiteout\WhiteoutHub.jsx:769:              <div className="wnx-list">
+> src\games\whiteout\WhiteoutHub.jsx:770:                {MODULES[active].sections.map(
+  src\games\whiteout\WhiteoutHub.jsx:771:                  ([title, description]) => (
+  src\games\whiteout\WhiteoutHub.jsx:772:                    <div
+  src\games\whiteout\WhiteoutHub.jsx:773:                      className="wnx-list-card"
+  src\games\whiteout\WhiteoutHub.jsx:774:                      key={title}
+  src\games\whiteout\WhiteoutHub.jsx:775:                    >
+  src\games\whiteout\WhiteoutHub.jsx:776:                      <strong>{title}</strong>
+  src\games\whiteout\WhiteoutHub.jsx:777:
+  src\games\whiteout\WhiteoutHub.jsx:778:                      <span>{description}</span>
+  src\games\whiteout\WhiteoutHub.jsx:886:
+  src\games\whiteout\WhiteoutHub.jsx:887:          <button
+  src\games\whiteout\WhiteoutHub.jsx:888:            className="wnx-map-fs"
+> src\games\whiteout\WhiteoutHub.jsx:889:            onClick={() => setFullscreen(false)}
+  src\games\whiteout\WhiteoutHub.jsx:890:          >
+  src\games\whiteout\WhiteoutHub.jsx:891:            ✕ Exit Fullscreen
+  src\games\whiteout\WhiteoutHub.jsx:892:          </button>
+  src\games\whiteout\WhiteoutHub.jsx:893:        </div>
+  src\games\whiteout\WhiteoutHub.jsx:894:      )}
+  src\games\whiteout\WhiteoutHub.jsx:895:    </section>
+  src\games\whiteout\WhiteoutHub.jsx:896:  )
+  src\games\whiteout\WhiteoutHub.jsx:897:}
+
+
