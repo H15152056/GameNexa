@@ -1,0 +1,8 @@
+﻿
+  src\App.jsx:1:import { useState } from 'react'
+> src\App.jsx:2:import { Link } from 'react-router-dom'
+  src\App.jsx:3:import './App.css'
+  src\App.jsx:4:import { gamesData } from './data/gamesData'
+  src\App.jsx:5:import { SEO } from './SEO'
+
+

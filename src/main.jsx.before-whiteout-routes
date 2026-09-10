@@ -14,7 +14,6 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsOfUsePage from './pages/TermsOfUsePage'
 import DisclaimerPage from './pages/DisclaimerPage'
 import DmcaPage from './pages/DmcaPage'
-import WhiteoutSectionPage from './pages/WhiteoutSectionPage'
 
 import './index.css'
 
@@ -31,11 +30,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route
           path="/game/:slug"
           element={<GamePage />}
-        />
-
-        <Route
-          path="/game/whiteout-survival/:section"
-          element={<WhiteoutSectionPage />}
         />
 
         <Route
