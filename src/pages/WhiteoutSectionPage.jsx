@@ -197,6 +197,12 @@ function mergeHeroes(staticHeroes, cmsHeroes) {
   return result
 }
 
+/* ============================================================
+   WHITEOUT HERO DATABASE
+   Uses the same visual card language as the main GamePage:
+   portrait image, rarity badge, clean metadata and hover lift.
+   ============================================================ */
+
 function HeroDatabase() {
   const [heroes, setHeroes] = useState(getStaticHeroes)
   const [search, setSearch] = useState('')
@@ -218,6 +224,7 @@ function HeroDatabase() {
         if (!raw) return
 
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+
         const cmsHeroes = Array.isArray(parsed)
           ? parsed.filter(item => item?.status !== 'draft')
           : []
@@ -265,7 +272,8 @@ function HeroDatabase() {
       const matchesRarity =
         rarity === 'all' || String(hero.rarity) === String(rarity)
 
-      const matchesRole = role === 'all' || hero.role === role
+      const matchesRole =
+        role === 'all' || hero.role === role
 
       const matchesGeneration =
         generation === 'all' ||
@@ -281,91 +289,470 @@ function HeroDatabase() {
   }, [heroes, search, rarity, role, generation])
 
   return (
-    <section className="whiteout-database">
-      <div className="whiteout-database-head">
-        <div>
-          <span className="whiteout-section-kicker">WHITEOUT SURVIVAL DATABASE</span>
-          <h2>Heroes</h2>
-          <p>
-            Search and filter the complete GameNexa Whiteout Survival hero database.
-          </p>
+    <>
+      <style>{`
+        .gnx-whiteout-heroes {
+          width: 100%;
+        }
+
+        .gnx-whiteout-heroes-head {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 24px;
+          margin-bottom: 24px;
+        }
+
+        .gnx-whiteout-heroes-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+          opacity: .68;
+        }
+
+        .gnx-whiteout-heroes-kicker::before {
+          content: '';
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: currentColor;
+          opacity: .8;
+        }
+
+        .gnx-whiteout-heroes-head h2 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 42px);
+          line-height: 1.05;
+          letter-spacing: -.035em;
+        }
+
+        .gnx-whiteout-heroes-head p {
+          max-width: 680px;
+          margin: 10px 0 0;
+          line-height: 1.65;
+          opacity: .68;
+        }
+
+        .gnx-whiteout-heroes-count {
+          flex: 0 0 auto;
+          padding: 10px 14px;
+          border: 1px solid rgba(255,255,255,.10);
+          border-radius: 999px;
+          background: rgba(255,255,255,.045);
+          font-size: 12px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .gnx-whiteout-heroes-controls {
+          display: grid;
+          grid-template-columns: minmax(200px, 1.7fr) repeat(3, minmax(130px, 1fr));
+          gap: 10px;
+          margin-bottom: 24px;
+        }
+
+        .gnx-whiteout-heroes-controls input,
+        .gnx-whiteout-heroes-controls select {
+          width: 100%;
+          min-width: 0;
+          height: 46px;
+          padding: 0 13px;
+          border: 1px solid rgba(255,255,255,.10);
+          border-radius: 11px;
+          outline: none;
+          background: rgba(255,255,255,.045);
+          color: inherit;
+          font: inherit;
+          font-size: 13px;
+        }
+
+        .gnx-whiteout-heroes-controls input::placeholder {
+          color: currentColor;
+          opacity: .45;
+        }
+
+        .gnx-whiteout-heroes-controls input:focus,
+        .gnx-whiteout-heroes-controls select:focus {
+          border-color: rgba(255,255,255,.28);
+          background: rgba(255,255,255,.065);
+        }
+
+        .gnx-whiteout-hero-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+          gap: 16px;
+        }
+
+        .gnx-whiteout-hero-card {
+          display: block;
+          width: 100%;
+          min-width: 0;
+          padding: 0;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.10);
+          border-radius: 16px;
+          background: rgba(255,255,255,.035);
+          color: inherit;
+          text-align: left;
+          transition:
+            transform .18s ease,
+            border-color .18s ease,
+            box-shadow .18s ease,
+            background .18s ease;
+        }
+
+        .gnx-whiteout-hero-card:hover {
+          transform: translateY(-5px);
+          border-color: rgba(255,255,255,.24);
+          background: rgba(255,255,255,.055);
+          box-shadow: 0 14px 32px rgba(0,0,0,.24);
+        }
+
+        .gnx-whiteout-hero-image {
+          position: relative;
+          aspect-ratio: 3 / 4;
+          overflow: hidden;
+          background: rgba(0,0,0,.18);
+        }
+
+        .gnx-whiteout-hero-image img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center top;
+          transition: transform .28s ease;
+        }
+
+        .gnx-whiteout-hero-card:hover .gnx-whiteout-hero-image img {
+          transform: scale(1.045);
+        }
+
+        .gnx-whiteout-hero-image::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(
+              to top,
+              rgba(0,0,0,.50) 0%,
+              rgba(0,0,0,.08) 35%,
+              transparent 58%
+            );
+          pointer-events: none;
+        }
+
+        .gnx-whiteout-hero-rarity {
+          position: absolute;
+          left: 9px;
+          bottom: 9px;
+          z-index: 2;
+          padding: 5px 9px;
+          border: 1px solid rgba(255,255,255,.16);
+          border-radius: 999px;
+          background: rgba(0,0,0,.68);
+          backdrop-filter: blur(8px);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .04em;
+          line-height: 1;
+        }
+
+        .gnx-whiteout-hero-generation {
+          position: absolute;
+          right: 9px;
+          top: 9px;
+          z-index: 2;
+          padding: 5px 8px;
+          border: 1px solid rgba(255,255,255,.14);
+          border-radius: 8px;
+          background: rgba(0,0,0,.58);
+          backdrop-filter: blur(8px);
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .gnx-whiteout-hero-placeholder {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          min-height: 220px;
+          font-size: 46px;
+          opacity: .55;
+          background:
+            radial-gradient(
+              circle at 50% 35%,
+              rgba(255,255,255,.09),
+              transparent 50%
+            ),
+            rgba(0,0,0,.18);
+        }
+
+        .gnx-whiteout-hero-body {
+          padding: 13px;
+        }
+
+        .gnx-whiteout-hero-body h3 {
+          margin: 0 0 10px;
+          font-size: 16px;
+          line-height: 1.25;
+          letter-spacing: -.015em;
+        }
+
+        .gnx-whiteout-hero-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+        }
+
+        .gnx-whiteout-hero-meta span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 22px;
+          padding: 4px 7px;
+          border: 1px solid rgba(255,255,255,.06);
+          border-radius: 7px;
+          background: rgba(255,255,255,.07);
+          font-size: 10px;
+          line-height: 1.15;
+          opacity: .82;
+        }
+
+        .gnx-whiteout-hero-description {
+          margin: 10px 0 0;
+          font-size: 11px;
+          line-height: 1.5;
+          opacity: .58;
+        }
+
+        .gnx-whiteout-empty {
+          padding: 45px 20px;
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 16px;
+          background: rgba(255,255,255,.03);
+          text-align: center;
+          opacity: .7;
+        }
+
+        @media (max-width: 800px) {
+          .gnx-whiteout-heroes-controls {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .gnx-whiteout-heroes-controls input {
+            grid-column: 1 / -1;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .gnx-whiteout-heroes-head {
+            display: block;
+            margin-bottom: 18px;
+          }
+
+          .gnx-whiteout-heroes-count {
+            display: inline-flex;
+            margin-top: 14px;
+          }
+
+          .gnx-whiteout-heroes-controls {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .gnx-whiteout-heroes-controls input,
+          .gnx-whiteout-heroes-controls select {
+            height: 43px;
+          }
+
+          .gnx-whiteout-hero-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .gnx-whiteout-hero-body {
+            padding: 11px;
+          }
+
+          .gnx-whiteout-hero-body h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+          }
+
+          .gnx-whiteout-hero-meta {
+            gap: 4px;
+          }
+
+          .gnx-whiteout-hero-meta span {
+            padding: 4px 6px;
+            font-size: 9px;
+          }
+
+          .gnx-whiteout-hero-description {
+            display: none;
+          }
+        }
+      `}</style>
+
+      <section className="gnx-whiteout-heroes">
+
+        <div className="gnx-whiteout-heroes-head">
+          <div>
+            <span className="gnx-whiteout-heroes-kicker">
+              WHITEOUT SURVIVAL DATABASE
+            </span>
+
+            <h2>Heroes</h2>
+
+            <p>
+              Explore the complete GameNexa Whiteout Survival hero database.
+              Search by hero name, role, rarity or generation.
+            </p>
+          </div>
+
+          <strong className="gnx-whiteout-heroes-count">
+            {filtered.length} / {heroes.length} Heroes
+          </strong>
         </div>
 
-        <strong>{filtered.length} Heroes Found</strong>
-      </div>
+        <div className="gnx-whiteout-heroes-controls">
 
-      <div className="whiteout-database-controls">
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Search heroes..."
-        />
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Search heroes..."
+            aria-label="Search Whiteout Survival heroes"
+          />
 
-        <select value={rarity} onChange={event => setRarity(event.target.value)}>
-          <option value="all">All Rarities</option>
-          {rarities.map(value => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+          <select
+            value={rarity}
+            onChange={event => setRarity(event.target.value)}
+            aria-label="Filter by rarity"
+          >
+            <option value="all">All Rarities</option>
 
-        <select value={role} onChange={event => setRole(event.target.value)}>
-          <option value="all">All Roles</option>
-          {roles.map(value => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+            {rarities.map(value => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={generation}
-          onChange={event => setGeneration(event.target.value)}
-        >
-          <option value="all">All Generations</option>
-          {generations.map(value => (
-            <option key={value} value={value}>
-              Generation {value}
-            </option>
-          ))}
-        </select>
-      </div>
+          <select
+            value={role}
+            onChange={event => setRole(event.target.value)}
+            aria-label="Filter by role"
+          >
+            <option value="all">All Roles</option>
 
-      <div className="whiteout-hero-grid">
-        {filtered.map(hero => (
-          <article className="whiteout-hero-card" key={hero.id || hero.slug}>
-            <div className="whiteout-hero-image">
-              {hero.image ? (
-                <img src={hero.image} alt={hero.name} loading="lazy" />
-              ) : (
-                <div className="whiteout-hero-placeholder">🦸</div>
-              )}
-            </div>
+            {roles.map(value => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
 
-            <div className="whiteout-hero-card-body">
-              <h3>{hero.name}</h3>
+          <select
+            value={generation}
+            onChange={event => setGeneration(event.target.value)}
+            aria-label="Filter by generation"
+          >
+            <option value="all">All Generations</option>
 
-              <div className="whiteout-hero-meta">
-                {hero.rarity && <span>{hero.rarity}</span>}
-                {hero.role && <span>{hero.role}</span>}
-                {hero.generation && <span>Gen {hero.generation}</span>}
+            {generations.map(value => (
+              <option key={value} value={value}>
+                Generation {value}
+              </option>
+            ))}
+          </select>
+
+        </div>
+
+        <div className="gnx-whiteout-hero-grid">
+
+          {filtered.map((hero, index) => (
+            <article
+              className="gnx-whiteout-hero-card"
+              key={hero.id || hero.slug || `${hero.name}-${index}`}
+            >
+
+              <div className="gnx-whiteout-hero-image">
+
+                {hero.image ? (
+                  <img
+                    src={hero.image}
+                    alt={`${hero.name} - Whiteout Survival`}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="gnx-whiteout-hero-placeholder">
+                    {String.fromCodePoint(0x1f9b8)}
+                  </div>
+                )}
+
+                {hero.rarity && (
+                  <span className="gnx-whiteout-hero-rarity">
+                    {hero.rarity}
+                  </span>
+                )}
+
+                {hero.generation && (
+                  <span className="gnx-whiteout-hero-generation">
+                    Gen {hero.generation}
+                  </span>
+                )}
+
               </div>
 
-              {hero.description && (
-                <p>{hero.description}</p>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
+              <div className="gnx-whiteout-hero-body">
 
-      {!filtered.length && (
-        <div className="whiteout-empty">
-          No heroes found for the selected filters.
+                <h3>{hero.name}</h3>
+
+                <div className="gnx-whiteout-hero-meta">
+
+                  {hero.role && (
+                    <span>{hero.role}</span>
+                  )}
+
+                  {hero.rarity && (
+                    <span>{hero.rarity}</span>
+                  )}
+
+                  {hero.generation && (
+                    <span>Gen {hero.generation}</span>
+                  )}
+
+                </div>
+
+                {hero.description && (
+                  <p className="gnx-whiteout-hero-description">
+                    {hero.description}
+                  </p>
+                )}
+
+              </div>
+
+            </article>
+          ))}
+
         </div>
-      )}
-    </section>
+
+        {!filtered.length && (
+          <div className="gnx-whiteout-empty">
+            No heroes found for the selected filters.
+          </div>
+        )}
+
+      </section>
+    </>
   )
 }
 
@@ -389,9 +776,29 @@ function SpeedupCalculator() {
       <p>Convert days, hours and minutes into a total speedup duration.</p>
 
       <div className="whiteout-calc-inputs">
-        <input type="number" min="0" value={days} onChange={e => setDays(e.target.value)} placeholder="Days" />
-        <input type="number" min="0" value={hours} onChange={e => setHours(e.target.value)} placeholder="Hours" />
-        <input type="number" min="0" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="Minutes" />
+        <input
+          type="number"
+          min="0"
+          value={days}
+          onChange={e => setDays(e.target.value)}
+          placeholder="Days"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={hours}
+          onChange={e => setHours(e.target.value)}
+          placeholder="Hours"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={minutes}
+          onChange={e => setMinutes(e.target.value)}
+          placeholder="Minutes"
+        />
       </div>
 
       <div className="whiteout-calc-result">
@@ -418,13 +825,42 @@ function ResourceCalculator() {
   return (
     <div className="whiteout-calculator-card">
       <h3>Resource Calculator</h3>
-      <p>Enter resource amounts to calculate your combined resource total.</p>
+      <p>
+        Enter resource amounts to calculate your combined resource total.
+      </p>
 
       <div className="whiteout-calc-inputs whiteout-calc-four">
-        <input type="number" min="0" value={wood} onChange={e => setWood(e.target.value)} placeholder="Wood" />
-        <input type="number" min="0" value={coal} onChange={e => setCoal(e.target.value)} placeholder="Coal" />
-        <input type="number" min="0" value={iron} onChange={e => setIron(e.target.value)} placeholder="Iron" />
-        <input type="number" min="0" value={meat} onChange={e => setMeat(e.target.value)} placeholder="Meat" />
+        <input
+          type="number"
+          min="0"
+          value={wood}
+          onChange={e => setWood(e.target.value)}
+          placeholder="Wood"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={coal}
+          onChange={e => setCoal(e.target.value)}
+          placeholder="Coal"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={iron}
+          onChange={e => setIron(e.target.value)}
+          placeholder="Iron"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={meat}
+          onChange={e => setMeat(e.target.value)}
+          placeholder="Meat"
+        />
       </div>
 
       <div className="whiteout-calc-result">
@@ -447,12 +883,34 @@ function TroopPlanner() {
   return (
     <div className="whiteout-calculator-card">
       <h3>Troop Planner</h3>
-      <p>Plan your Infantry, Lancer and Marksman troop counts.</p>
+      <p>
+        Plan your Infantry, Lancer and Marksman troop counts.
+      </p>
 
       <div className="whiteout-calc-inputs">
-        <input type="number" min="0" value={infantry} onChange={e => setInfantry(e.target.value)} placeholder="Infantry" />
-        <input type="number" min="0" value={lancer} onChange={e => setLancer(e.target.value)} placeholder="Lancer" />
-        <input type="number" min="0" value={marksman} onChange={e => setMarksman(e.target.value)} placeholder="Marksman" />
+        <input
+          type="number"
+          min="0"
+          value={infantry}
+          onChange={e => setInfantry(e.target.value)}
+          placeholder="Infantry"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={lancer}
+          onChange={e => setLancer(e.target.value)}
+          placeholder="Lancer"
+        />
+
+        <input
+          type="number"
+          min="0"
+          value={marksman}
+          onChange={e => setMarksman(e.target.value)}
+          placeholder="Marksman"
+        />
       </div>
 
       <div className="whiteout-calc-result">
@@ -466,8 +924,12 @@ function CalculatorsPage() {
   return (
     <section className="whiteout-calculators">
       <div className="whiteout-tool-intro">
-        <span className="whiteout-section-kicker">WHITEOUT SURVIVAL TOOLS</span>
+        <span className="whiteout-section-kicker">
+          WHITEOUT SURVIVAL TOOLS
+        </span>
+
         <h2>Whiteout Survival Calculators</h2>
+
         <p>
           Use these GameNexa tools to calculate speedups, resources and troop planning.
         </p>
@@ -490,12 +952,15 @@ function BattleMapsPage() {
     foundry: {
       title: 'Foundry Battle Map',
       image: '/maps/foundry-battle-4k.jpg',
-      description: 'Foundry Battle map for alliance objective and movement planning.',
+      description:
+        'Foundry Battle map for alliance objective and movement planning.',
     },
+
     canyon: {
       title: 'Canyon Clash Map',
       image: '/maps/canyon-clash-4k.jpg',
-      description: 'Canyon Clash map for attack, defense and alliance coordination.',
+      description:
+        'Canyon Clash map for attack, defense and alliance coordination.',
     },
   }
 
@@ -503,9 +968,14 @@ function BattleMapsPage() {
 
   return (
     <section className="whiteout-maps">
+
       <div className="whiteout-tool-intro">
-        <span className="whiteout-section-kicker">WHITEOUT SURVIVAL MAPS</span>
+        <span className="whiteout-section-kicker">
+          WHITEOUT SURVIVAL MAPS
+        </span>
+
         <h2>Battle Maps</h2>
+
         <p>
           Use the available battle maps for Foundry Battle and Canyon Clash planning.
         </p>
@@ -524,6 +994,7 @@ function BattleMapsPage() {
       </div>
 
       <div className="whiteout-map-card">
+
         <div className="whiteout-map-card-head">
           <div>
             <h3>{current.title}</h3>
@@ -539,8 +1010,12 @@ function BattleMapsPage() {
         </div>
 
         <div className="whiteout-map-image-wrap">
-          <img src={current.image} alt={current.title} />
+          <img
+            src={current.image}
+            alt={current.title}
+          />
         </div>
+
       </div>
 
       {fullscreen && (
@@ -562,15 +1037,19 @@ function BattleMapsPage() {
           />
         </div>
       )}
+
     </section>
   )
 }
 
-function GenericSection({ data, section }) {
+function GenericSection({ data }) {
   return (
     <>
       {data.headings.map(([heading, text]) => (
-        <article className="whiteout-seo-section" key={heading}>
+        <article
+          className="whiteout-seo-section"
+          key={heading}
+        >
           <h2>{heading}</h2>
           <p>{text}</p>
         </article>
@@ -578,10 +1057,12 @@ function GenericSection({ data, section }) {
 
       <section className="whiteout-seo-section">
         <h2>Whiteout Survival {data.shortTitle} Guide</h2>
+
         <p>
           GameNexa organizes Whiteout Survival information into dedicated,
           searchable resources designed for players and alliance leaders.
         </p>
+
         <p>
           This page is part of the GameNexa Whiteout Survival knowledge base.
         </p>
@@ -592,6 +1073,10 @@ function GenericSection({ data, section }) {
 
 function WhiteoutSectionPage() {
   const { section } = useParams()
+
+  /* ============================================================
+     HEROES PAGE
+     ============================================================ */
 
   if (section === 'heroes') {
     return (
@@ -604,21 +1089,33 @@ function WhiteoutSectionPage() {
         />
 
         <main className="whiteout-section-page">
+
           <div className="whiteout-section-inner">
+
             <div className="whiteout-breadcrumb">
               <Link to="/">GameNexa</Link>
               <span>›</span>
-              <Link to={BASE}>Whiteout Survival</Link>
+
+              <Link to={BASE}>
+                Whiteout Survival
+              </Link>
+
               <span>›</span>
               <span>Heroes</span>
             </div>
 
             <HeroDatabase />
+
           </div>
+
         </main>
       </>
     )
   }
+
+  /* ============================================================
+     CALCULATORS
+     ============================================================ */
 
   if (section === 'calculators') {
     return (
@@ -631,21 +1128,33 @@ function WhiteoutSectionPage() {
         />
 
         <main className="whiteout-section-page">
+
           <div className="whiteout-section-inner">
+
             <div className="whiteout-breadcrumb">
               <Link to="/">GameNexa</Link>
               <span>›</span>
-              <Link to={BASE}>Whiteout Survival</Link>
+
+              <Link to={BASE}>
+                Whiteout Survival
+              </Link>
+
               <span>›</span>
               <span>Calculators</span>
             </div>
 
             <CalculatorsPage />
+
           </div>
+
         </main>
       </>
     )
   }
+
+  /* ============================================================
+     BATTLE MAPS
+     ============================================================ */
 
   if (section === 'battle-maps') {
     return (
@@ -658,31 +1167,52 @@ function WhiteoutSectionPage() {
         />
 
         <main className="whiteout-section-page">
+
           <div className="whiteout-section-inner">
+
             <div className="whiteout-breadcrumb">
               <Link to="/">GameNexa</Link>
               <span>›</span>
-              <Link to={BASE}>Whiteout Survival</Link>
+
+              <Link to={BASE}>
+                Whiteout Survival
+              </Link>
+
               <span>›</span>
               <span>Battle Maps</span>
             </div>
 
             <BattleMapsPage />
+
           </div>
+
         </main>
       </>
     )
   }
+
+  /* ============================================================
+     GENERIC WHITEOUT SECTIONS
+     ============================================================ */
 
   const data = SECTIONS[section]
 
   if (!data) {
     return (
       <main className="whiteout-section-page">
+
         <div className="whiteout-section-inner">
-          <h1>Whiteout Survival Page Not Found</h1>
-          <Link to={BASE}>Open Whiteout Survival</Link>
+
+          <h1>
+            Whiteout Survival Page Not Found
+          </h1>
+
+          <Link to={BASE}>
+            Open Whiteout Survival
+          </Link>
+
         </div>
+
       </main>
     )
   }
@@ -713,53 +1243,88 @@ function WhiteoutSectionPage() {
       />
 
       <main className="whiteout-section-page">
+
         <div className="whiteout-section-inner">
 
           <div className="whiteout-breadcrumb">
-            <Link to="/">GameNexa</Link>
+
+            <Link to="/">
+              GameNexa
+            </Link>
+
             <span>›</span>
-            <Link to={BASE}>Whiteout Survival</Link>
+
+            <Link to={BASE}>
+              Whiteout Survival
+            </Link>
+
             <span>›</span>
-            <span>{data.shortTitle}</span>
+
+            <span>
+              {data.shortTitle}
+            </span>
+
           </div>
 
           <header className="whiteout-section-hero">
+
             <div className="whiteout-section-icon">
               {data.icon}
             </div>
 
             <div>
+
               <span className="whiteout-section-kicker">
                 WHITEOUT SURVIVAL
               </span>
 
-              <h1>{data.title}</h1>
+              <h1>
+                {data.title}
+              </h1>
 
-              <p>{data.intro}</p>
+              <p>
+                {data.intro}
+              </p>
+
             </div>
+
           </header>
 
           <div className="whiteout-section-content">
+
             <div className="whiteout-main-column">
-              <GenericSection data={data} section={section} />
+
+              <GenericSection
+                data={data}
+                section={section}
+              />
+
             </div>
 
             <aside className="whiteout-section-sidebar">
+
               <div className="whiteout-sidebar-card">
+
                 <span className="whiteout-section-kicker">
                   WHITEOUT SURVIVAL HUB
                 </span>
 
-                <h2>Explore Whiteout Survival</h2>
+                <h2>
+                  Explore Whiteout Survival
+                </h2>
 
                 <div className="whiteout-related-links">
+
                   {Object.entries(SECTIONS).map(([slug, item]) => (
                     <Link
                       key={slug}
                       to={`${BASE}/${slug}`}
                       className={slug === section ? 'active' : ''}
                     >
-                      <span>{item.icon}</span>
+                      <span>
+                        {item.icon}
+                      </span>
+
                       {item.shortTitle}
                     </Link>
                   ))}
@@ -768,7 +1333,10 @@ function WhiteoutSectionPage() {
                     to={`${BASE}/heroes`}
                     className={section === 'heroes' ? 'active' : ''}
                   >
-                    <span>🦸</span>
+                    <span>
+                      🦸
+                    </span>
+
                     Heroes
                   </Link>
 
@@ -776,9 +1344,13 @@ function WhiteoutSectionPage() {
                     to={`${BASE}/battle-maps`}
                     className={section === 'battle-maps' ? 'active' : ''}
                   >
-                    <span>🗺️</span>
+                    <span>
+                      🗺️
+                    </span>
+
                     Battle Maps
                   </Link>
+
                 </div>
 
                 <Link
@@ -787,15 +1359,20 @@ function WhiteoutSectionPage() {
                 >
                   Open Whiteout Hub
                 </Link>
+
               </div>
+
             </aside>
+
           </div>
 
         </div>
+
       </main>
     </>
   )
 }
 
 export { SECTIONS }
+
 export default WhiteoutSectionPage

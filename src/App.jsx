@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Routes, Route } from 'react-router-dom'
+import GamePage from './pages/GamePage'
 import './App.css'
 import { gamesData } from './data/gamesData'
 import { SEO } from './SEO'
