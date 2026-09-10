@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 
 const WHITEOUT_MAPS = [
@@ -7,20 +7,20 @@ const WHITEOUT_MAPS = [
     title: 'Foundry Battle Map',
     subtitle: 'Imperial Foundry, Boiler Room, Central Transit, Mercenary Camp and Munitions Warehouse',
     image: '/maps/foundry-battle-4k.jpg',
-    icon: 'âš”ï¸',
+    icon: '⚔️',
   },
   {
     id: 'canyon',
     title: 'Canyon Clash Battle Map',
     subtitle: 'Alliance battlefield, objectives, lanes and strategic positions',
     image: '/maps/canyon-clash-4k.jpg',
-    icon: 'ðŸ”ï¸',
+    icon: '🏔️',
   },
 ]
 
 const MODULES = {
   facilities: {
-    icon: 'ðŸ­',
+    icon: '🏭',
     title: 'Facilities',
     intro: 'Important event and state facilities with their purpose, locations and strategic value.',
     sections: [
@@ -35,7 +35,7 @@ const MODULES = {
   },
 
   fortresses: {
-    icon: 'ðŸ°',
+    icon: '🏰',
     title: 'Fortresses',
     intro: 'Organize fortress ownership, rallies, garrisons, rewards and alliance priorities.',
     sections: [
@@ -48,7 +48,7 @@ const MODULES = {
   },
 
   strongholds: {
-    icon: 'ðŸ›¡ï¸',
+    icon: '🛡️',
     title: 'Strongholds',
     intro: 'Keep stronghold priorities, control status and defensive assignments organized.',
     sections: [
@@ -61,21 +61,21 @@ const MODULES = {
   },
 
   resources: {
-    icon: 'ðŸŒ²',
+    icon: '🌲',
     title: 'Resources',
     intro: 'Whiteout Survival resource reference for gathering, protection and progression.',
     sections: [
-      ['ðŸŒ² Wood', 'Used for construction, upgrades and various progression requirements.'],
-      ['ðŸª¨ Coal', 'Core settlement resource used throughout progression.'],
-      ['â›“ï¸ Iron', 'Higher-value resource required for advanced upgrades.'],
-      ['ðŸ– Meat', 'Important resource for troop-related progression and development.'],
+      ['🌲 Wood', 'Used for construction, upgrades and various progression requirements.'],
+      ['🪨 Coal', 'Core settlement resource used throughout progression.'],
+      ['⛓️ Iron', 'Higher-value resource required for advanced upgrades.'],
+      ['🍖 Meat', 'Important resource for troop-related progression and development.'],
       ['Gathering', 'Prioritize gathering according to current upgrade requirements.'],
       ['Resource Protection', 'Avoid unnecessary resource exposure before major events.'],
     ],
   },
 
   territory: {
-    icon: 'ðŸ‘¥',
+    icon: '👥',
     title: 'Alliance Territory',
     intro: 'Plan HQ placement, banners, connected territory and alliance expansion.',
     sections: [
@@ -88,21 +88,21 @@ const MODULES = {
   },
 
   events: {
-    icon: 'âš”ï¸',
+    icon: '⚔️',
     title: 'Events',
     intro: 'Central Whiteout Survival event reference and preparation hub.',
     sections: [
-      ['ðŸ» Bear Trap', 'Coordinate rally leads, joiners, timing and damage optimization.'],
-      ['ðŸ‘¹ Crazy Joe', 'Prepare defense formations, troop distribution and reinforcement plans.'],
-      ['âš”ï¸ Foundry Battle', 'Plan objectives, movement, rallies and facility control.'],
-      ['ðŸ”ï¸ Canyon Clash', 'Coordinate lanes, objectives and alliance battlefield assignments.'],
-      ['ðŸ”¥ Sunfire Castle', 'Track preparation, battlefield roles and major objectives.'],
-      ['ðŸŒ State Transfer', 'Keep state-transfer preparation and requirements organized.'],
+      ['🐻 Bear Trap', 'Coordinate rally leads, joiners, timing and damage optimization.'],
+      ['👹 Crazy Joe', 'Prepare defense formations, troop distribution and reinforcement plans.'],
+      ['⚔️ Foundry Battle', 'Plan objectives, movement, rallies and facility control.'],
+      ['🏔️ Canyon Clash', 'Coordinate lanes, objectives and alliance battlefield assignments.'],
+      ['🔥 Sunfire Castle', 'Track preparation, battlefield roles and major objectives.'],
+      ['🌍 State Transfer', 'Keep state-transfer preparation and requirements organized.'],
     ],
   },
 
   buildings: {
-    icon: 'ðŸ—ï¸',
+    icon: '🏗️',
     title: 'Buildings',
     intro: 'Core settlement buildings and practical upgrade priorities.',
     sections: [
@@ -116,7 +116,7 @@ const MODULES = {
   },
 
   research: {
-    icon: 'ðŸ”¬',
+    icon: '🔬',
     title: 'Research',
     intro: 'Research priorities organized around economy, battle and march development.',
     sections: [
@@ -131,7 +131,7 @@ const MODULES = {
   },
 
   troops: {
-    icon: 'ðŸŽ–ï¸',
+    icon: '🎖️',
     title: 'Troops',
     intro: 'Understand Infantry, Lancer and Marksman roles and formation basics.',
     sections: [
@@ -144,7 +144,7 @@ const MODULES = {
   },
 
   planner: {
-    icon: 'ðŸ§­',
+    icon: '🧭',
     title: 'Alliance Planner',
     intro: 'A simple planning workspace for alliance officers and event coordination.',
     sections: [
@@ -158,17 +158,17 @@ const MODULES = {
 }
 
 const NAV_ITEMS = [
-  ['facilities', 'ðŸ­', 'Facilities'],
-  ['fortresses', 'ðŸ°', 'Fortresses'],
-  ['strongholds', 'ðŸ›¡ï¸', 'Strongholds'],
-  ['resources', 'ðŸŒ²', 'Resources'],
-  ['territory', 'ðŸ‘¥', 'Alliance Territory'],
-  ['events', 'âš”ï¸', 'Events'],
-  ['buildings', 'ðŸ—ï¸', 'Buildings'],
-  ['research', 'ðŸ”¬', 'Research'],
-  ['troops', 'ðŸŽ–ï¸', 'Troops'],
-  ['calculators', 'ðŸ§®', 'Calculators'],
-  ['planner', 'ðŸ§­', 'Alliance Planner'],
+  ['facilities', '🏭', 'Facilities'],
+  ['fortresses', '🏰', 'Fortresses'],
+  ['strongholds', '🛡️', 'Strongholds'],
+  ['resources', '🌲', 'Resources'],
+  ['territory', '👥', 'Alliance Territory'],
+  ['events', '⚔️', 'Events'],
+  ['buildings', '🏗️', 'Buildings'],
+  ['research', '🔬', 'Research'],
+  ['troops', '🎖️', 'Troops'],
+  ['calculators', '🧮', 'Calculators'],
+  ['planner', '🧭', 'Alliance Planner'],
 ]
 
 function WhiteoutHub() {
@@ -587,7 +587,7 @@ function WhiteoutHub() {
             className="wnx-back"
             onClick={() => setActive('overview')}
           >
-            â† Back to Hub
+            ← Back to Hub
           </button>
         )}
 
@@ -614,8 +614,132 @@ function WhiteoutHub() {
                   </Link>
                 )
               })}
+
+              <button
+                className="wnx-overview-card"
+                onClick={() => setActive('maps')}
+              >
+                <div className="icon">🗺️</div>
+
+                <h3>Battle Maps</h3>
+
+                <p>
+                  View available Foundry Battle and
+                  Canyon Clash map images for planning.
+                </p>
+              </button>
             </div>
           </>
+        )}
+
+        {active === 'maps' && (
+          <div className="wnx-map-grid">
+            <div className="wnx-map-card">
+              <div className="wnx-map-buttons">
+                {WHITEOUT_MAPS.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`wnx-map-button ${
+                      activeMap === item.id
+                        ? 'active'
+                        : ''
+                    }`}
+                    onClick={() =>
+                      setActiveMap(item.id)
+                    }
+                  >
+                    <strong>
+                      {item.icon} {item.title}
+                    </strong>
+
+                    <span>{item.subtitle}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="wnx-map-view">
+                <img
+                  src={map.image}
+                  alt={map.title}
+                  onError={(event) => {
+                    event.currentTarget.style.display =
+                      'none'
+                  }}
+                />
+
+                <button
+                  className="wnx-map-fs"
+                  onClick={() =>
+                    setFullscreen(true)
+                  }
+                >
+                  ⛶ Fullscreen
+                </button>
+              </div>
+
+              <div className="wnx-map-info">
+                <h3>{map.title}</h3>
+
+                <p>{map.subtitle}</p>
+              </div>
+            </div>
+
+            <div className="wnx-detail">
+              <div className="wnx-detail-header">
+                <div className="wnx-detail-icon">
+                  🗺️
+                </div>
+
+                <div>
+                  <div className="wnx-kicker">
+                    BATTLE MAPS
+                  </div>
+
+                  <h3>{map.title}</h3>
+
+                  <p className="wnx-detail-intro">
+                    Use the map image as a visual
+                    reference for alliance planning,
+                    objectives, rallies and defense.
+                  </p>
+                </div>
+              </div>
+
+              <div className="wnx-list">
+                <div className="wnx-list-card">
+                  <strong>⚔️ Alliance Planning</strong>
+                  <span>
+                    Organize battlefield movement and
+                    objective priorities.
+                  </span>
+                </div>
+
+                <div className="wnx-list-card">
+                  <strong>📍 Objectives</strong>
+                  <span>
+                    Use the map to identify important
+                    locations.
+                  </span>
+                </div>
+
+                <div className="wnx-list-card">
+                  <strong>🛡️ Defense</strong>
+                  <span>
+                    Prepare defensive positions and
+                    assignments.
+                  </span>
+                </div>
+
+                <div className="wnx-list-card">
+                  <strong>🚩 Rallies</strong>
+                  <span>
+                    Coordinate rally locations and
+                    movement.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {active !== 'overview' &&
@@ -663,7 +787,7 @@ function WhiteoutHub() {
         {active === 'calculators' && (
           <div className="wnx-calc">
             <div className="wnx-calc-card">
-              <h3>ðŸ“¦ Resource Calculator</h3>
+              <h3>📦 Resource Calculator</h3>
 
               {['wood', 'coal', 'iron', 'meat'].map(
                 (key) => (
@@ -700,7 +824,7 @@ function WhiteoutHub() {
             </div>
 
             <div className="wnx-calc-card">
-              <h3>â±ï¸ Speedup Calculator</h3>
+              <h3>⏱️ Speedup Calculator</h3>
 
               <label className="wnx-field">
                 <span>Total Hours</span>
@@ -724,7 +848,7 @@ function WhiteoutHub() {
               </div>
 
               <h3 style={{ marginTop: 22 }}>
-                ðŸŽ–ï¸ Troop Power Estimate
+                🎖️ Troop Power Estimate
               </h3>
 
               <label className="wnx-field">
@@ -765,7 +889,7 @@ function WhiteoutHub() {
             className="wnx-map-fs"
             onClick={() => setFullscreen(false)}
           >
-            âœ• Exit Fullscreen
+            ✕ Exit Fullscreen
           </button>
         </div>
       )}
