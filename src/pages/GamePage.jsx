@@ -307,24 +307,42 @@ function GamePage() {
     slugify(game?.name) === 'whiteout-survival'
 
   const databaseCharacters = useMemo(() => {
-    if (isGenshin) {
-      return Array.isArray(genshinCharacters)
-        ? genshinCharacters
-        : []
-    }
-
     /*
      * IMPORTANT:
-     * Whiteout heroes MUST come from gamesData.js.
-     * gameCharacters.js is intentionally NOT used for Whiteout.
+     * Always prefer the CMS-merged game data first.
+     * This makes Admin CMS edits to built-in characters/heroes
+     * appear on the live GamePage without changing the original
+     * static database files.
      */
     if (isWhiteout) {
+      if (Array.isArray(game?.heroes)) {
+        return game.heroes
+      }
+
+      if (Array.isArray(game?.characters)) {
+        return game.characters
+      }
+
       return Array.isArray(whiteoutHeroes)
         ? whiteoutHeroes
         : []
     }
 
+    if (isGenshin) {
+      if (Array.isArray(game?.characters)) {
+        return game.characters
+      }
+
+      return Array.isArray(genshinCharacters)
+        ? genshinCharacters
+        : []
+    }
+
     if (game?.slug) {
+      if (Array.isArray(game?.characters)) {
+        return game.characters
+      }
+
       return gameCharacters?.[game.slug] || []
     }
 

@@ -7,14 +7,19 @@ import { gamesData } from '../data/gamesData'
 import {
   applyCMSOverrides,
   cmsCollectionKey,
+  cmsCollectionOverridesKey,
   cmsDeletedGuidesKey,
   cmsDescKey,
+  cmsGameFieldsKey,
   cmsGuidesKey,
   cmsHeadingKey,
   cmsKey,
   cmsStructureKey,
   cmsTitleKey,
   fetchCMSContent,
+  getStableRecordId,
+  parseCMSCollection,
+  parseCMSCollectionOverrides,
 } from '../cms/cmsContent'
 
 import {
@@ -78,6 +83,14 @@ function cloneGuide(guide) {
   }
 }
 
+function cloneObject(value) {
+  try {
+    return JSON.parse(JSON.stringify(value))
+  } catch {
+    return value
+  }
+}
+
 function makeId() {
   if (
     typeof crypto !== 'undefined' &&
@@ -89,6 +102,65 @@ function makeId() {
   return `${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}`
+}
+
+function getRecordId(item, index = 0) {
+  return (
+    item?._cmsSourceId ||
+    item?.cmsRecordId ||
+    item?.cmsId ||
+    getStableRecordId(item, index)
+  )
+}
+
+function getRecordLabel(item, index) {
+  return (
+    item?.name ||
+    item?.title ||
+    item?.slug ||
+    `Record ${index + 1}`
+  )
+}
+
+function getGameCollection(game, collection) {
+  if (!game) {
+    return []
+  }
+
+  if (
+    game.slug === 'whiteout-survival' &&
+    collection === 'heroes'
+  ) {
+    if (Array.isArray(game.heroes)) {
+      return game.heroes
+    }
+
+    if (Array.isArray(game.characters)) {
+      return game.characters
+    }
+  }
+
+  if (Array.isArray(game[collection])) {
+    return game[collection]
+  }
+
+  return []
+}
+
+function getEditableGameFields(game) {
+  if (!game || typeof game !== 'object') {
+    return {}
+  }
+
+  const fields = cloneObject(game) || {}
+
+  delete fields.guides
+  delete fields.characters
+  delete fields.heroes
+
+  delete fields._cmsGameFieldsOverridden
+
+  return fields
 }
 
 function AdminPage() {
@@ -128,6 +200,9 @@ function AdminPage() {
   const [collectionDraft, setCollectionDraft] =
     useState(null)
 
+  const [collectionDraftText, setCollectionDraftText] =
+    useState('')
+
   const [isCreatingItem, setIsCreatingItem] =
     useState(false)
 
@@ -142,6 +217,9 @@ function AdminPage() {
 
   const [editorDraft, setEditorDraft] =
     useState(null)
+
+  const [gameDraftText, setGameDraftText] =
+    useState('')
 
   const mergedGames = useMemo(
     () =>
@@ -172,36 +250,61 @@ function AdminPage() {
     !isCreatingGuide &&
     !!currentGuide?.cmsGuideId
 
+  /*
+   * ==========================================================
+   * COLLECTION DATA
+   * ==========================================================
+   */
+
   const collectionItems = useMemo(() => {
+    if (!game || !selectedCollection) {
+      return []
+    }
+
+    return getGameCollection(
+      game,
+      selectedCollection
+    )
+  }, [
+    game,
+    selectedCollection,
+  ])
+
+  const collectionOverrides = useMemo(() => {
     if (!selectedGame || !selectedCollection) {
-      return []
+      return {}
     }
 
-    const key =
-      cmsCollectionKey(
-        selectedGame,
-        selectedCollection
-      )
-
-    if (!content[key]) {
-      return []
-    }
-
-    try {
-      const parsed =
-        JSON.parse(content[key])
-
-      return Array.isArray(parsed)
-        ? parsed
-        : []
-    } catch {
-      return []
-    }
+    return parseCMSCollectionOverrides(
+      content,
+      selectedGame,
+      selectedCollection
+    )
   }, [
     content,
     selectedGame,
     selectedCollection,
   ])
+
+  /*
+   * ==========================================================
+   * GAME SETTINGS
+   * ==========================================================
+   */
+
+  const gameSettingsDraft = useMemo(() => {
+    if (!game) {
+      return {}
+    }
+
+    return getEditableGameFields(game)
+  }, [game])
+
+  /*
+   * ==========================================================
+   * SESSION
+   * ==========================================================
+   */
 
   useEffect(() => {
     async function checkSession() {
@@ -236,6 +339,12 @@ function AdminPage() {
     }
   }, [authenticated])
 
+  /*
+   * ==========================================================
+   * GUIDE EDITOR SYNC
+   * ==========================================================
+   */
+
   useEffect(() => {
     if (!isCreatingGuide && currentGuide) {
       setEditorDraft(
@@ -250,24 +359,73 @@ function AdminPage() {
     currentGuide?.cmsBuiltInGuideIndex,
   ])
 
-  useEffect(() => {
-    if (!isCreatingItem) {
-      const found =
-        collectionItems.find(
-          (item) =>
-            item?.id === selectedItemId
-        )
+  /*
+   * ==========================================================
+   * COLLECTION EDITOR SYNC
+   * ==========================================================
+   */
 
-      setCollectionDraft(
-        found
-          ? JSON.parse(JSON.stringify(found))
-          : null
+  useEffect(() => {
+    if (isCreatingItem) {
+      return
+    }
+
+    const foundIndex =
+      collectionItems.findIndex(
+        (item, index) =>
+          getRecordId(item, index) ===
+          selectedItemId
       )
+
+    if (foundIndex >= 0) {
+      const found =
+        collectionItems[foundIndex]
+
+      const cloned =
+        cloneObject(found)
+
+      setCollectionDraft(cloned)
+
+      setCollectionDraftText(
+        JSON.stringify(
+          cloned,
+          null,
+          2
+        )
+      )
+    } else {
+      setCollectionDraft(null)
+      setCollectionDraftText('')
     }
   }, [
     collectionItems,
     selectedItemId,
     isCreatingItem,
+  ])
+
+  /*
+   * ==========================================================
+   * GAME SETTINGS SYNC
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (
+      activeSection === 'game-settings' &&
+      game
+    ) {
+      setGameDraftText(
+        JSON.stringify(
+          gameSettingsDraft,
+          null,
+          2
+        )
+      )
+    }
+  }, [
+    activeSection,
+    selectedGame,
+    game?.slug,
   ])
 
   async function loadContent() {
@@ -276,6 +434,12 @@ function AdminPage() {
 
     setContent(data || {})
   }
+
+  /*
+   * ==========================================================
+   * LOGIN
+   * ==========================================================
+   */
 
   async function handleLogin(event) {
     event.preventDefault()
@@ -348,7 +512,14 @@ function AdminPage() {
     setContent({})
     setEditorDraft(null)
     setCollectionDraft(null)
+    setGameDraftText('')
   }
+
+  /*
+   * ==========================================================
+   * D1 SAVE / DELETE
+   * ==========================================================
+   */
 
   async function saveContentItem(
     key,
@@ -424,6 +595,139 @@ function AdminPage() {
 
   /*
    * ==========================================================
+   * GAME SETTINGS
+   * ==========================================================
+   */
+
+  function openGameSettings(gameSlug) {
+    setSelectedGame(gameSlug)
+    setActiveSection('game-settings')
+    setSelectedCollection(
+      COLLECTIONS[gameSlug]?.[0]?.[0] ||
+        'characters'
+    )
+    setMessage('')
+  }
+
+  function updateGameDraftText(value) {
+    setGameDraftText(value)
+  }
+
+  async function saveGameSettings() {
+    if (!game) {
+      return
+    }
+
+    let parsed
+
+    try {
+      parsed =
+        JSON.parse(
+          gameDraftText
+        )
+    } catch {
+      setMessage(
+        'Invalid JSON. Please fix the Game Data before saving.'
+      )
+      return
+    }
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed)
+    ) {
+      setMessage(
+        'Game Data must be a JSON object.'
+      )
+      return
+    }
+
+    /*
+     * These fields are controlled by specialized
+     * CMS systems and must not be overwritten here.
+     */
+    delete parsed.guides
+    delete parsed.characters
+    delete parsed.heroes
+    delete parsed.slug
+
+    setSaving(true)
+    setMessage('')
+
+    try {
+      const key =
+        cmsGameFieldsKey(
+          game.slug
+        )
+
+      await saveContentItem(
+        key,
+        JSON.stringify(parsed)
+      )
+
+      setMessage(
+        'Game data saved successfully.'
+      )
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to save game data.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function resetGameSettings() {
+    if (!game) {
+      return
+    }
+
+    const confirmed =
+      window.confirm(
+        `Reset all CMS changes for "${game.name}" and restore the original game data?`
+      )
+
+    if (!confirmed) {
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+
+    try {
+      await deleteContentItem(
+        cmsGameFieldsKey(
+          game.slug
+        )
+      )
+
+      setGameDraftText(
+        JSON.stringify(
+          getEditableGameFields(
+            game
+          ),
+          null,
+          2
+        )
+      )
+
+      setMessage(
+        'Game data reset successfully. Original data restored.'
+      )
+    } catch (error) {
+      setMessage(
+        error?.message ||
+          'Failed to reset game data.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /*
+   * ==========================================================
    * COLLECTION CMS
    * ==========================================================
    */
@@ -437,6 +741,7 @@ function AdminPage() {
     setActiveSection('collection')
     setSelectedItemId('')
     setCollectionDraft(null)
+    setCollectionDraftText('')
     setIsCreatingItem(false)
     setMessage('')
   }
@@ -444,7 +749,8 @@ function AdminPage() {
   function createCollectionItem() {
     setIsCreatingItem(true)
     setSelectedItemId('')
-    setCollectionDraft({
+
+    const newItem = {
       id: makeId(),
       title: '',
       slug: '',
@@ -452,26 +758,67 @@ function AdminPage() {
       image: '',
       status: 'published',
       content: '',
-    })
+    }
+
+    setCollectionDraft(newItem)
+
+    setCollectionDraftText(
+      JSON.stringify(
+        newItem,
+        null,
+        2
+      )
+    )
+
     setMessage('')
   }
 
-  function updateCollectionField(
-    field,
+  function updateCollectionDraftText(
     value
   ) {
-    setCollectionDraft(
-      (previous) => ({
-        ...(previous || {}),
-        [field]: value,
-      })
-    )
+    setCollectionDraftText(value)
+
+    try {
+      const parsed =
+        JSON.parse(value)
+
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed)
+      ) {
+        setCollectionDraft(parsed)
+      }
+    } catch {
+      /*
+       * Keep textarea editable even when JSON
+       * is temporarily invalid.
+       */
+    }
   }
 
   async function saveCollectionItem() {
-    if (!collectionDraft?.title?.trim()) {
+    let parsed
+
+    try {
+      parsed =
+        JSON.parse(
+          collectionDraftText
+        )
+    } catch {
       setMessage(
-        'Please enter a title.'
+        'Invalid JSON. Please fix the record before saving.'
+      )
+      return
+    }
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed)
+    ) {
+      setMessage(
+        'Collection record must be a JSON object.'
       )
       return
     }
@@ -480,76 +827,125 @@ function AdminPage() {
     setMessage('')
 
     try {
-      const key =
-        cmsCollectionKey(
-          selectedGame,
-          selectedCollection
+      if (isCreatingItem) {
+        /*
+         * -------------------------
+         * CMS-created item
+         * -------------------------
+         */
+
+        const key =
+          cmsCollectionKey(
+            selectedGame,
+            selectedCollection
+          )
+
+        const existing =
+          parseCMSCollection(
+            content,
+            selectedGame,
+            selectedCollection
+          )
+
+        const cleanItem = {
+          ...parsed,
+          id:
+            parsed.id ||
+            makeId(),
+        }
+
+        const existingIndex =
+          existing.findIndex(
+            (item) =>
+              item?.id ===
+              cleanItem.id
+          )
+
+        if (existingIndex >= 0) {
+          existing[
+            existingIndex
+          ] = cleanItem
+        } else {
+          existing.push(
+            cleanItem
+          )
+        }
+
+        await saveContentItem(
+          key,
+          JSON.stringify(existing)
         )
 
-      const existing =
-        [...collectionItems]
-
-      const index =
-        existing.findIndex(
-          (item) =>
-            item?.id ===
-            collectionDraft.id
+        setSelectedItemId(
+          cleanItem.id
         )
 
-      const cleanItem = {
-        ...collectionDraft,
-        id:
-          collectionDraft.id ||
-          makeId(),
-        title:
-          collectionDraft.title.trim(),
-        slug:
-          collectionDraft.slug?.trim() ||
-          collectionDraft.title
-            .trim()
-            .toLowerCase()
-            .replace(
-              /[^a-z0-9]+/g,
-              '-'
-            )
-            .replace(
-              /^-+|-+$/g,
-              ''),
-        description:
-          collectionDraft.description ||
-          '',
-        image:
-          collectionDraft.image ||
-          '',
-        status:
-          collectionDraft.status ||
-          'published',
-        content:
-          collectionDraft.content ||
-          '',
-      }
+        setIsCreatingItem(false)
 
-      if (index >= 0) {
-        existing[index] =
-          cleanItem
+        setMessage(
+          'New content saved successfully.'
+        )
       } else {
-        existing.push(cleanItem)
+        /*
+         * -------------------------
+         * Built-in item override
+         * -------------------------
+         */
+
+        const recordId =
+          getRecordId(
+            collectionDraft
+          )
+
+        if (!recordId) {
+          throw new Error(
+            'Unable to identify this built-in record.'
+          )
+        }
+
+        const key =
+          cmsCollectionOverridesKey(
+            selectedGame,
+            selectedCollection
+          )
+
+        const overrides =
+          parseCMSCollectionOverrides(
+            content,
+            selectedGame,
+            selectedCollection
+          )
+
+        /*
+         * Do not save internal CMS markers.
+         */
+        const cleanOverride = {
+          ...parsed,
+        }
+
+        delete cleanOverride._cmsSourceId
+        delete cleanOverride._cmsBuiltIn
+        delete cleanOverride._cmsCreated
+        delete cleanOverride._cmsOverridden
+
+        /*
+         * Keep the original record ID stable.
+         */
+        overrides[
+          recordId
+        ] = cleanOverride
+
+        await saveContentItem(
+          key,
+          JSON.stringify(
+            overrides
+          )
+        )
+
+        setMessage(
+          'Built-in content updated successfully.'
+        )
       }
-
-      await saveContentItem(
-        key,
-        JSON.stringify(existing)
-      )
-
-      setSelectedItemId(
-        cleanItem.id
-      )
-
-      setIsCreatingItem(false)
-
-      setMessage(
-        'Content saved successfully.'
-      )
     } catch (error) {
       setMessage(
         error?.message ||
@@ -561,13 +957,100 @@ function AdminPage() {
   }
 
   async function deleteCollectionItem() {
-    if (!collectionDraft?.id) {
+    if (!collectionDraft) {
       return
     }
 
+    /*
+     * CMS-created record:
+     * permanently remove it from CMS collection.
+     */
+    if (isCreatingItem ||
+        collectionDraft._cmsCreated) {
+      const title =
+        getRecordLabel(
+          collectionDraft
+        )
+
+      const confirmed =
+        window.confirm(
+          `Delete "${title}"?`
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setSaving(true)
+
+      try {
+        const key =
+          cmsCollectionKey(
+            selectedGame,
+            selectedCollection
+          )
+
+        const existing =
+          parseCMSCollection(
+            content,
+            selectedGame,
+            selectedCollection
+          )
+
+        const recordId =
+          getRecordId(
+            collectionDraft
+          )
+
+        const updated =
+          existing.filter(
+            (item, index) =>
+              getRecordId(
+                item,
+                index
+              ) !== recordId
+          )
+
+        await saveContentItem(
+          key,
+          JSON.stringify(
+            updated
+          )
+        )
+
+        setCollectionDraft(null)
+        setCollectionDraftText('')
+        setSelectedItemId('')
+        setIsCreatingItem(false)
+
+        setMessage(
+          'CMS content deleted successfully.'
+        )
+      } catch (error) {
+        setMessage(
+          error?.message ||
+            'Failed to delete content.'
+        )
+      } finally {
+        setSaving(false)
+      }
+
+      return
+    }
+
+    /*
+     * Built-in record:
+     * Delete means RESET CMS override.
+     * Original built-in data is restored.
+     */
+    const recordName =
+      getRecordLabel(
+        collectionDraft
+      )
+
     const confirmed =
       window.confirm(
-        `Delete "${collectionDraft.title}"?`
+        `Reset "${recordName}" to the original built-in data?`
       )
 
     if (!confirmed) {
@@ -578,34 +1061,55 @@ function AdminPage() {
 
     try {
       const key =
-        cmsCollectionKey(
+        cmsCollectionOverridesKey(
           selectedGame,
           selectedCollection
         )
 
-      const updated =
-        collectionItems.filter(
-          (item) =>
-            item?.id !==
-            collectionDraft.id
+      const overrides =
+        parseCMSCollectionOverrides(
+          content,
+          selectedGame,
+          selectedCollection
         )
 
-      await saveContentItem(
-        key,
-        JSON.stringify(updated)
-      )
+      const recordId =
+        getRecordId(
+          collectionDraft
+        )
+
+      delete overrides[
+        recordId
+      ]
+
+      if (
+        Object.keys(
+          overrides
+        ).length === 0
+      ) {
+        await deleteContentItem(
+          key
+        )
+      } else {
+        await saveContentItem(
+          key,
+          JSON.stringify(
+            overrides
+          )
+        )
+      }
 
       setCollectionDraft(null)
+      setCollectionDraftText('')
       setSelectedItemId('')
-      setIsCreatingItem(false)
 
       setMessage(
-        'Content deleted successfully.'
+        'Original built-in data restored successfully.'
       )
     } catch (error) {
       setMessage(
         error?.message ||
-          'Failed to delete content.'
+          'Failed to reset content.'
       )
     } finally {
       setSaving(false)
@@ -1233,7 +1737,9 @@ function AdminPage() {
             )
         } catch {}
 
-        if (!indexes.includes(index)) {
+        if (
+          !indexes.includes(index)
+        ) {
           indexes.push(index)
         }
 
@@ -1267,6 +1773,7 @@ function AdminPage() {
 
   const dashboardStats = useMemo(() => {
     let collectionCount = 0
+    let overriddenCount = 0
 
     Object.keys(content).forEach(
       (key) => {
@@ -1287,6 +1794,29 @@ function AdminPage() {
             }
           } catch {}
         }
+
+        if (
+          key.startsWith(
+            'cms.override.'
+          )
+        ) {
+          try {
+            const items =
+              JSON.parse(
+                content[key]
+              )
+
+            if (
+              items &&
+              typeof items === 'object'
+            ) {
+              overriddenCount +=
+                Object.keys(
+                  items
+                ).length
+            }
+          } catch {}
+        }
       }
     )
 
@@ -1301,10 +1831,14 @@ function AdminPage() {
       games: mergedGames.length,
       guides: guideCount,
       collectionCount,
-      cmsKeys: Object.keys(content)
-        .length,
+      overriddenCount,
+      cmsKeys:
+        Object.keys(content).length,
     }
-  }, [content, mergedGames])
+  }, [
+    content,
+    mergedGames,
+  ])
 
   /*
    * ==========================================================
@@ -1393,7 +1927,7 @@ function AdminPage() {
 
   /*
    * ==========================================================
-   * ADMIN
+   * ADMIN UI
    * ==========================================================
    */
 
@@ -1407,6 +1941,18 @@ function AdminPage() {
         id === selectedCollection
     )?.[1] ||
     selectedCollection
+
+  const selectedRecord =
+    collectionDraft
+
+  const selectedRecordIsBuiltIn =
+    !!selectedRecord &&
+    !selectedRecord._cmsCreated &&
+    !isCreatingItem
+
+  const selectedRecordIsOverridden =
+    selectedRecordIsBuiltIn &&
+    !!selectedRecord._cmsOverridden
 
   return (
     <div className="admin-page">
@@ -1451,6 +1997,9 @@ function AdminPage() {
               message
                 .toLowerCase()
                 .includes('please') ||
+              message
+                .toLowerCase()
+                .includes('invalid') ||
               message
                 .toLowerCase()
                 .includes('not found')
@@ -1504,6 +2053,10 @@ function AdminPage() {
               📖 Guides
             </button>
 
+            <div className="admin-nav-title">
+              Games
+            </div>
+
             {mergedGames.map(
               (item) => (
                 <div
@@ -1513,6 +2066,25 @@ function AdminPage() {
                   <div className="admin-game-title">
                     {item.name}
                   </div>
+
+                  <button
+                    type="button"
+                    className={
+                      activeSection ===
+                        'game-settings' &&
+                      selectedGame ===
+                        item.slug
+                        ? 'admin-nav-button sub active'
+                        : 'admin-nav-button sub'
+                    }
+                    onClick={() =>
+                      openGameSettings(
+                        item.slug
+                      )
+                    }
+                  >
+                    ⚙️ Game Data
+                  </button>
 
                   {(
                     COLLECTIONS[
@@ -1551,6 +2123,12 @@ function AdminPage() {
           </aside>
 
           <main className="admin-main">
+
+            {/*
+             * ==================================================
+             * DASHBOARD
+             * ==================================================
+             */}
 
             {activeSection ===
               'dashboard' && (
@@ -1603,6 +2181,17 @@ function AdminPage() {
                   <div className="admin-stat-card">
                     <strong>
                       {
+                        dashboardStats.overriddenCount
+                      }
+                    </strong>
+                    <span>
+                      Edited Built-ins
+                    </span>
+                  </div>
+
+                  <div className="admin-stat-card">
+                    <strong>
+                      {
                         dashboardStats.cmsKeys
                       }
                     </strong>
@@ -1630,7 +2219,7 @@ function AdminPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            setSelectedGame(
+                            openGameSettings(
                               item.slug
                             )
                           }
@@ -1646,6 +2235,138 @@ function AdminPage() {
 
               </div>
             )}
+
+            {/*
+             * ==================================================
+             * GAME SETTINGS
+             * ==================================================
+             */}
+
+            {activeSection ===
+              'game-settings' && (
+              <div className="admin-card">
+
+                <div className="admin-editor-toolbar">
+                  <div>
+                    <h1>
+                      {game?.name ||
+                        'Game Data'}
+                    </h1>
+
+                    <p>
+                      Edit the main game
+                      information used across
+                      GameNexa.
+                    </p>
+                  </div>
+
+                  <div className="admin-inline-actions">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGameDraftText(
+                          JSON.stringify(
+                            getEditableGameFields(
+                              game
+                            ),
+                            null,
+                            2
+                          )
+                        )
+                      }
+                      className="admin-secondary-button"
+                    >
+                      Reload Original View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={
+                        resetGameSettings
+                      }
+                      className="admin-danger-button"
+                      disabled={
+                        saving
+                      }
+                    >
+                      Reset Changes
+                    </button>
+                  </div>
+                </div>
+
+                <div className="admin-section">
+
+                  <h2>
+                    Main Game Data
+                  </h2>
+
+                  <p>
+                    Edit the JSON fields below.
+                    Guides and Characters/Heroes
+                    are managed separately so
+                    existing CMS data is not
+                    damaged.
+                  </p>
+
+                  <div className="admin-field">
+
+                    <label>
+                      Game Data JSON
+                    </label>
+
+                    <textarea
+                      rows={32}
+                      value={
+                        gameDraftText
+                      }
+                      onChange={(event) =>
+                        updateGameDraftText(
+                          event.target.value
+                        )
+                      }
+                      spellCheck={false}
+                    />
+
+                  </div>
+
+                </div>
+
+                <div className="admin-actions">
+
+                  <button
+                    type="button"
+                    onClick={
+                      resetGameSettings
+                    }
+                    className="admin-danger-button"
+                    disabled={saving}
+                  >
+                    Reset to Original
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      saveGameSettings
+                    }
+                    className="admin-primary-button"
+                    disabled={saving}
+                  >
+                    {saving
+                      ? 'Saving...'
+                      : 'Save Game Data'}
+                  </button>
+
+                </div>
+
+              </div>
+            )}
+
+            {/*
+             * ==================================================
+             * COLLECTION
+             * ==================================================
+             */}
 
             {activeSection ===
               'collection' && (
@@ -1690,48 +2411,78 @@ function AdminPage() {
                     {collectionItems.length ===
                     0 ? (
                       <div className="admin-empty">
+
                         <h2>
-                          No CMS content yet
+                          No content yet
                         </h2>
 
                         <p>
-                          Click “Add New” to
-                          create your first
-                          item.
+                          No built-in or CMS
+                          records were found
+                          for this collection.
                         </p>
+
                       </div>
                     ) : (
                       collectionItems.map(
-                        (item) => (
-                          <button
-                            type="button"
-                            key={item.id}
-                            className={
-                              selectedItemId ===
-                              item.id
-                                ? 'admin-item active'
-                                : 'admin-item'
-                            }
-                            onClick={() => {
-                              setIsCreatingItem(
-                                false
-                              )
-                              setSelectedItemId(
-                                item.id
-                              )
-                            }}
-                          >
-                            <strong>
-                              {item.title ||
-                                'Untitled'}
-                            </strong>
+                        (
+                          item,
+                          index
+                        ) => {
+                          const id =
+                            getRecordId(
+                              item,
+                              index
+                            )
 
-                            <span>
-                              {item.status ||
-                                'published'}
-                            </span>
-                          </button>
-                        )
+                          const isBuiltIn =
+                            item?._cmsBuiltIn ===
+                            true
+
+                          const isOverridden =
+                            item?._cmsOverridden ===
+                            true
+
+                          return (
+                            <button
+                              type="button"
+                              key={id}
+                              className={
+                                selectedItemId ===
+                                id
+                                  ? 'admin-item active'
+                                  : 'admin-item'
+                              }
+                              onClick={() => {
+                                setIsCreatingItem(
+                                  false
+                                )
+                                setSelectedItemId(
+                                  id
+                                )
+                              }}
+                            >
+
+                              <strong>
+                                {
+                                  getRecordLabel(
+                                    item,
+                                    index
+                                  )
+                                }
+                              </strong>
+
+                              <span>
+                                {isBuiltIn
+                                  ? isOverridden
+                                    ? 'Built-in • Edited'
+                                    : 'Built-in'
+                                  : 'CMS'}
+                              </span>
+
+                            </button>
+                          )
+                        }
                       )
                     )}
 
@@ -1741,154 +2492,49 @@ function AdminPage() {
 
                     {collectionDraft ? (
                       <>
+
                         <div className="admin-section">
 
-                          <h2>
-                            Content Details
-                          </h2>
+                          <div className="admin-section-header">
 
-                          <div className="admin-field">
-                            <label>
-                              Title
-                            </label>
+                            <div>
+                              <h2>
+                                {isCreatingItem
+                                  ? 'Create New Content'
+                                  : 'Edit Content'}
+                              </h2>
 
-                            <input
-                              value={
-                                collectionDraft.title ||
-                                ''
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'title',
-                                  event.target
-                                    .value
-                                )
-                              }
-                            />
+                              {!isCreatingItem &&
+                                selectedRecordIsBuiltIn && (
+                                  <p>
+                                    {selectedRecordIsOverridden
+                                      ? 'This built-in record has a CMS override.'
+                                      : 'This is the original built-in record. Saving creates a CMS override.'}
+                                  </p>
+                                )}
+                            </div>
+
                           </div>
 
                           <div className="admin-field">
-                            <label>
-                              Slug
-                            </label>
 
-                            <input
-                              value={
-                                collectionDraft.slug ||
-                                ''
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'slug',
-                                  event.target
-                                    .value
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="admin-field">
                             <label>
-                              Description
+                              Complete Record JSON
                             </label>
 
                             <textarea
-                              rows={4}
+                              rows={32}
                               value={
-                                collectionDraft.description ||
-                                ''
+                                collectionDraftText
                               }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'description',
-                                  event.target
-                                    .value
+                              onChange={(event) =>
+                                updateCollectionDraftText(
+                                  event.target.value
                                 )
                               }
+                              spellCheck={false}
                             />
-                          </div>
 
-                          <div className="admin-field">
-                            <label>
-                              Image URL
-                            </label>
-
-                            <input
-                              value={
-                                collectionDraft.image ||
-                                ''
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'image',
-                                  event.target
-                                    .value
-                                )
-                              }
-                              placeholder="https://..."
-                            />
-                          </div>
-
-                          <div className="admin-field">
-                            <label>
-                              Status
-                            </label>
-
-                            <select
-                              value={
-                                collectionDraft.status ||
-                                'published'
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'status',
-                                  event.target
-                                    .value
-                                )
-                              }
-                            >
-                              <option value="published">
-                                Published
-                              </option>
-
-                              <option value="draft">
-                                Draft
-                              </option>
-                            </select>
-                          </div>
-
-                          <div className="admin-field">
-                            <label>
-                              Content
-                            </label>
-
-                            <textarea
-                              rows={15}
-                              value={
-                                collectionDraft.content ||
-                                ''
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                updateCollectionField(
-                                  'content',
-                                  event.target
-                                    .value
-                                )
-                              }
-                              placeholder="Write content here..."
-                            />
                           </div>
 
                         </div>
@@ -1902,11 +2548,58 @@ function AdminPage() {
                             }
                             className="admin-danger-button"
                             disabled={
-                              saving ||
-                              isCreatingItem
+                              saving
                             }
                           >
-                            Delete
+                            {isCreatingItem ||
+                            selectedRecord?._cmsCreated
+                              ? 'Delete Content'
+                              : 'Reset to Original'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current =
+                                collectionItems.find(
+                                  (
+                                    item,
+                                    index
+                                  ) =>
+                                    getRecordId(
+                                      item,
+                                      index
+                                    ) ===
+                                    selectedItemId
+                                )
+
+                              if (
+                                current
+                              ) {
+                                const cloned =
+                                  cloneObject(
+                                    current
+                                  )
+
+                                setCollectionDraft(
+                                  cloned
+                                )
+
+                                setCollectionDraftText(
+                                  JSON.stringify(
+                                    cloned,
+                                    null,
+                                    2
+                                  )
+                                )
+                              }
+                            }}
+                            className="admin-secondary-button"
+                            disabled={
+                              saving
+                            }
+                          >
+                            Reload
                           </button>
 
                           <button
@@ -1915,26 +2608,35 @@ function AdminPage() {
                               saveCollectionItem
                             }
                             className="admin-primary-button"
-                            disabled={saving}
+                            disabled={
+                              saving
+                            }
                           >
                             {saving
                               ? 'Saving...'
-                              : 'Save Content'}
+                              : isCreatingItem
+                                ? 'Create Content'
+                                : 'Save Changes'}
                           </button>
 
                         </div>
+
                       </>
                     ) : (
                       <div className="admin-empty">
+
                         <h2>
                           Select Content
                         </h2>
 
                         <p>
-                          Select an item from
-                          the left or create a
-                          new one.
+                          Built-in records are
+                          automatically shown
+                          here. Select one to
+                          edit it, or create a
+                          new CMS record.
                         </p>
+
                       </div>
                     )}
 
@@ -1944,6 +2646,12 @@ function AdminPage() {
 
               </div>
             )}
+
+            {/*
+             * ==================================================
+             * GUIDES
+             * ==================================================
+             */}
 
             {activeSection ===
               'guides' && (
@@ -1981,6 +2689,7 @@ function AdminPage() {
                 <div className="admin-select-grid">
 
                   <div className="admin-field">
+
                     <label>
                       Game
                     </label>
@@ -1989,16 +2698,16 @@ function AdminPage() {
                       value={
                         selectedGame
                       }
-                      onChange={(
-                        event
-                      ) => {
+                      onChange={(event) => {
                         setSelectedGame(
                           event.target
                             .value
                         )
+
                         setSelectedGuide(
                           0
                         )
+
                         setIsCreatingGuide(
                           false
                         )
@@ -2022,9 +2731,11 @@ function AdminPage() {
                         )
                       )}
                     </select>
+
                   </div>
 
                   <div className="admin-field">
+
                     <label>
                       Guide
                     </label>
@@ -2035,9 +2746,7 @@ function AdminPage() {
                           ? ''
                           : selectedGuide
                       }
-                      onChange={(
-                        event
-                      ) => {
+                      onChange={(event) => {
                         setSelectedGuide(
                           Number(
                             event
@@ -2045,6 +2754,7 @@ function AdminPage() {
                               .value
                           )
                         )
+
                         setIsCreatingGuide(
                           false
                         )
@@ -2067,8 +2777,7 @@ function AdminPage() {
                               index
                             }
                           >
-                            {index +
-                              1}.{' '}
+                            {index + 1}.{' '}
                             {item.title}
                             {item.cmsGuideId
                               ? ' (CMS)'
@@ -2077,6 +2786,7 @@ function AdminPage() {
                         )
                       )}
                     </select>
+
                   </div>
 
                 </div>
@@ -2218,6 +2928,7 @@ function GuideEditor({
         </h2>
 
         <div className="admin-field">
+
           <label>
             Icon
           </label>
@@ -2236,9 +2947,11 @@ function GuideEditor({
               !isNew && !isCMS
             }
           />
+
         </div>
 
         <div className="admin-field">
+
           <label>
             Guide Title
           </label>
@@ -2254,9 +2967,11 @@ function GuideEditor({
               )
             }
           />
+
         </div>
 
         <div className="admin-field">
+
           <label>
             Description
           </label>
@@ -2273,6 +2988,7 @@ function GuideEditor({
               )
             }
           />
+
         </div>
 
       </div>
@@ -2280,6 +2996,7 @@ function GuideEditor({
       <div className="admin-section">
 
         <div className="admin-section-header">
+
           <h2>
             Guide Sections
           </h2>
@@ -2293,6 +3010,7 @@ function GuideEditor({
           >
             + Add Section
           </button>
+
         </div>
 
         {(guide.content || []).map(

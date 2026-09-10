@@ -23,12 +23,11 @@ export async function fetchCMSContent() {
   }
 }
 
-export function cmsKey(
-  slug,
-  guideIndex,
-  sectionIndex,
-  paragraphIndex
-) {
+// ============================================================
+// GUIDES
+// ============================================================
+
+export function cmsKey(slug, guideIndex, sectionIndex, paragraphIndex) {
   return `guide.${slug}.${guideIndex}.content.${sectionIndex}.paragraph.${paragraphIndex}`
 }
 
@@ -56,29 +55,85 @@ export function cmsGuidesKey(slug) {
   return `game.${slug}.cmsGuides`
 }
 
-/*
- * Generic WordPress-style CMS collections.
- *
- * Example:
- *
- * cms.collection.genshin.characters
- * cms.collection.genshin.builds
- * cms.collection.genshin.weapons
- * cms.collection.whiteout-survival.heroes
- * cms.collection.whiteout-survival.facilities
- */
+// ============================================================
+// UNIVERSAL GAME CMS
+// ============================================================
+
+export function cmsGameFieldsKey(gameSlug) {
+  return `cms.game.${gameSlug}.fields`
+}
 
 export function cmsCollectionKey(gameSlug, collection) {
   return `cms.collection.${gameSlug}.${collection}`
 }
 
+export function cmsCollectionOverridesKey(gameSlug, collection) {
+  return `cms.collection.${gameSlug}.${collection}.overrides`
+}
+
+// ============================================================
+// STABLE RECORD IDs
+// ============================================================
+
+function slugify(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+export function getStableRecordId(item, index = 0) {
+  if (!item || typeof item !== 'object') {
+    return `record-${index}`
+  }
+
+  if (item.id !== undefined && item.id !== null && String(item.id).trim()) {
+    return String(item.id)
+  }
+
+  if (
+    item.cmsRecordId !== undefined &&
+    item.cmsRecordId !== null &&
+    String(item.cmsRecordId).trim()
+  ) {
+    return String(item.cmsRecordId)
+  }
+
+  if (
+    item.cmsId !== undefined &&
+    item.cmsId !== null &&
+    String(item.cmsId).trim()
+  ) {
+    return String(item.cmsId)
+  }
+
+  const source =
+    item.slug ||
+    item.name ||
+    item.title ||
+    item.key ||
+    item.code
+
+  const slug = slugify(source)
+
+  if (slug) {
+    return slug
+  }
+
+  return `record-${index}`
+}
+
+// ============================================================
+// COLLECTION PARSING
+// ============================================================
+
 export function parseCMSCollection(contentMap, gameSlug, collection) {
   const key = cmsCollectionKey(gameSlug, collection)
   const value = contentMap?.[key]
 
-  if (!value) {
-    return []
-  }
+  if (!value) return []
 
   try {
     const parsed = JSON.parse(value)
@@ -88,34 +143,92 @@ export function parseCMSCollection(contentMap, gameSlug, collection) {
   }
 }
 
-function normalizeStructure(structure) {
-  if (!Array.isArray(structure)) {
-    return []
+export function parseCMSCollectionOverrides(
+  contentMap,
+  gameSlug,
+  collection
+) {
+  const key = cmsCollectionOverridesKey(gameSlug, collection)
+  const value = contentMap?.[key]
+
+  if (!value) return {}
+
+  try {
+    const parsed = JSON.parse(value)
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed
+    }
+
+    return {}
+  } catch {
+    return {}
   }
+}
+
+// ============================================================
+// GAME FIELD PARSING
+// ============================================================
+
+function parseCMSGameFields(contentMap, gameSlug) {
+  const key = cmsGameFieldsKey(gameSlug)
+  const value = contentMap?.[key]
+
+  if (!value) return {}
+
+  try {
+    const parsed = JSON.parse(value)
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed
+    }
+
+    return {}
+  } catch {
+    return {}
+  }
+}
+
+// ============================================================
+// GUIDE HELPERS
+// ============================================================
+
+function normalizeStructure(structure) {
+  if (!Array.isArray(structure)) return []
 
   return structure.map((section) => ({
     heading:
       typeof section?.heading === 'string'
         ? section.heading
         : '',
-    paragraphs:
-      Array.isArray(section?.paragraphs)
-        ? section.paragraphs.map((paragraph) =>
-            typeof paragraph === 'string'
-              ? paragraph
-              : ''
-          )
-        : [],
+
+    paragraphs: Array.isArray(section?.paragraphs)
+      ? section.paragraphs.map((paragraph) =>
+          typeof paragraph === 'string'
+            ? paragraph
+            : ''
+        )
+      : [],
   }))
 }
 
-function getStructureOverride(contentMap, slug, guideIndex) {
+function getStructureOverride(
+  contentMap,
+  slug,
+  guideIndex
+) {
   const value =
     contentMap[cmsStructureKey(slug, guideIndex)]
 
-  if (!value) {
-    return null
-  }
+  if (!value) return null
 
   try {
     const parsed = JSON.parse(value)
@@ -130,13 +243,13 @@ function getStructureOverride(contentMap, slug, guideIndex) {
   }
 }
 
-function getDeletedBuiltInGuideIndexes(contentMap, slug) {
-  const value =
-    contentMap[cmsDeletedGuidesKey(slug)]
+function getDeletedBuiltInGuideIndexes(
+  contentMap,
+  slug
+) {
+  const value = contentMap[cmsDeletedGuidesKey(slug)]
 
-  if (!value) {
-    return []
-  }
+  if (!value) return []
 
   try {
     const parsed = JSON.parse(value)
@@ -156,9 +269,7 @@ function getDeletedBuiltInGuideIndexes(contentMap, slug) {
 function getCMSGuides(contentMap, slug) {
   const value = contentMap[cmsGuidesKey(slug)]
 
-  if (!value) {
-    return []
-  }
+  if (!value) return []
 
   try {
     const parsed = JSON.parse(value)
@@ -189,23 +300,311 @@ function getCMSGuides(contentMap, slug) {
             ? guide.desc
             : '',
 
-        content:
-          normalizeStructure(guide.content),
+        content: normalizeStructure(
+          guide.content
+        ),
 
         cmsGuideId:
           typeof guide.cmsGuideId === 'string'
             ? guide.cmsGuideId
             : undefined,
+
+        _cmsCreated: true,
       }))
   } catch {
     return []
   }
 }
 
-export function applyCMSOverrides(gamesData, contentMap) {
+// ============================================================
+// COLLECTION REGISTRY
+// ============================================================
+
+const COLLECTION_REGISTRY = {
+  genshin: [
+    'characters',
+    'builds',
+    'weapons',
+    'artifacts',
+    'maps',
+    'videos',
+  ],
+
+  'whiteout-survival': [
+    'heroes',
+    'characters',
+    'builds',
+    'maps',
+    'facilities',
+    'resources',
+    'beartrap',
+    'videos',
+  ],
+}
+
+// ============================================================
+// COLLECTION SOURCE RESOLUTION
+// ============================================================
+
+function getBuiltInCollection(
+  game,
+  collection
+) {
+  if (!game) return []
+
+  if (
+    game.slug === 'whiteout-survival' &&
+    collection === 'heroes'
+  ) {
+    if (Array.isArray(game.heroes)) {
+      return game.heroes
+    }
+
+    if (Array.isArray(game.characters)) {
+      return game.characters
+    }
+
+    return []
+  }
+
+  if (
+    game.slug === 'whiteout-survival' &&
+    collection === 'characters'
+  ) {
+    if (Array.isArray(game.characters)) {
+      return game.characters
+    }
+
+    if (Array.isArray(game.heroes)) {
+      return game.heroes
+    }
+
+    return []
+  }
+
+  if (Array.isArray(game[collection])) {
+    return game[collection]
+  }
+
+  return []
+}
+
+// ============================================================
+// MERGE COLLECTION WITH CMS OVERRIDES
+// ============================================================
+
+function mergeCollection(
+  game,
+  collection,
+  contentMap
+) {
+  const builtInItems =
+    getBuiltInCollection(game, collection)
+
+  const cmsItems = parseCMSCollection(
+    contentMap,
+    game.slug,
+    collection
+  )
+
+  const overrides =
+    parseCMSCollectionOverrides(
+      contentMap,
+      game.slug,
+      collection
+    )
+
+  const mergedBuiltIns = builtInItems.map(
+    (item, index) => {
+      const sourceId =
+        getStableRecordId(item, index)
+
+      const override =
+        overrides?.[sourceId]
+
+      const merged =
+        override &&
+        typeof override === 'object'
+          ? {
+              ...item,
+              ...override,
+            }
+          : {
+              ...item,
+            }
+
+      return {
+        ...merged,
+
+        _cmsSourceId: sourceId,
+
+        _cmsBuiltIn: true,
+
+        _cmsCreated: false,
+
+        _cmsOverridden:
+          !!override &&
+          typeof override === 'object',
+      }
+    }
+  )
+
+  const mergedCMSItems = cmsItems
+    .filter(
+      (item) =>
+        item &&
+        typeof item === 'object'
+    )
+    .map((item, index) => ({
+      ...item,
+
+      _cmsSourceId:
+        getStableRecordId(item, index),
+
+      _cmsBuiltIn: false,
+
+      _cmsCreated: true,
+
+      _cmsOverridden: false,
+    }))
+
+  return [
+    ...mergedBuiltIns,
+    ...mergedCMSItems,
+  ]
+}
+
+// ============================================================
+// APPLY ALL CMS OVERRIDES
+// ============================================================
+
+export function applyCMSOverrides(
+  gamesData,
+  contentMap
+) {
   const cloned = structuredClone(gamesData)
 
   Object.values(cloned).forEach((game) => {
+    if (!game || !game.slug) {
+      return
+    }
+
+    // --------------------------------------------------------
+    // GAME MAIN DATA
+    // --------------------------------------------------------
+
+    const gameFields =
+      parseCMSGameFields(
+        contentMap,
+        game.slug
+      )
+
+    if (
+      gameFields &&
+      typeof gameFields === 'object'
+    ) {
+      Object.entries(gameFields).forEach(
+        ([key, value]) => {
+          if (
+            key === 'slug' ||
+            key === 'guides' ||
+            key === 'characters' ||
+            key === 'heroes'
+          ) {
+            return
+          }
+
+          game[key] = value
+        }
+      )
+
+      game._cmsGameFieldsOverridden = true
+    } else {
+      game._cmsGameFieldsOverridden = false
+    }
+
+    // --------------------------------------------------------
+    // BUILT-IN + CMS COLLECTIONS
+    // --------------------------------------------------------
+
+    const collections =
+      COLLECTION_REGISTRY[
+        game.slug
+      ] || []
+
+    collections.forEach(
+      (collection) => {
+        const builtIn =
+          getBuiltInCollection(
+            game,
+            collection
+          )
+
+        const hasBuiltIn =
+          Array.isArray(builtIn) &&
+          builtIn.length > 0
+
+        const hasCMS =
+          parseCMSCollection(
+            contentMap,
+            game.slug,
+            collection
+          ).length > 0
+
+        const hasOverrides =
+          Object.keys(
+            parseCMSCollectionOverrides(
+              contentMap,
+              game.slug,
+              collection
+            )
+          ).length > 0
+
+        if (
+          hasBuiltIn ||
+          hasCMS ||
+          hasOverrides
+        ) {
+          const merged =
+            mergeCollection(
+              game,
+              collection,
+              contentMap
+            )
+
+          if (
+            game.slug ===
+              'whiteout-survival' &&
+            collection === 'heroes'
+          ) {
+            game.heroes = merged
+          } else if (
+            game.slug ===
+              'whiteout-survival' &&
+            collection === 'characters'
+          ) {
+            // Keep Whiteout's original
+            // characters field synchronized
+            // when it exists.
+            if (
+              Array.isArray(
+                game.characters
+              )
+            ) {
+              game.characters =
+                merged
+            }
+          } else {
+            game[collection] = merged
+          }
+        }
+      }
+    )
+
+    // --------------------------------------------------------
+    // GUIDES
+    // --------------------------------------------------------
+
     const deletedGuideIndexes =
       getDeletedBuiltInGuideIndexes(
         contentMap,
@@ -229,12 +628,18 @@ export function applyCMSOverrides(gamesData, contentMap) {
             guideIndex
           )
 
-        if (contentMap[titleKey] !== undefined) {
+        if (
+          contentMap[titleKey] !==
+          undefined
+        ) {
           guide.title =
             contentMap[titleKey]
         }
 
-        if (contentMap[descKey] !== undefined) {
+        if (
+          contentMap[descKey] !==
+          undefined
+        ) {
           guide.desc =
             contentMap[descKey]
         }
@@ -246,15 +651,23 @@ export function applyCMSOverrides(gamesData, contentMap) {
             guideIndex
           )
 
-        if (structureOverride !== null) {
+        if (
+          structureOverride !==
+          null
+        ) {
           guide.content =
             structureOverride
 
           return
         }
 
-        ;(guide.content || []).forEach(
-          (section, sectionIndex) => {
+        ;(
+          guide.content || []
+        ).forEach(
+          (
+            section,
+            sectionIndex
+          ) => {
             const headingKey =
               cmsHeadingKey(
                 game.slug,
@@ -263,16 +676,24 @@ export function applyCMSOverrides(gamesData, contentMap) {
               )
 
             if (
-              contentMap[headingKey] !== undefined
+              contentMap[
+                headingKey
+              ] !== undefined
             ) {
               section.heading =
-                contentMap[headingKey]
+                contentMap[
+                  headingKey
+                ]
             }
 
             ;(
-              section.paragraphs || []
+              section.paragraphs ||
+              []
             ).forEach(
-              (paragraph, paragraphIndex) => {
+              (
+                paragraph,
+                paragraphIndex
+              ) => {
                 const key =
                   cmsKey(
                     game.slug,
@@ -282,7 +703,8 @@ export function applyCMSOverrides(gamesData, contentMap) {
                   )
 
                 if (
-                  contentMap[key] !== undefined
+                  contentMap[key] !==
+                  undefined
                 ) {
                   section.paragraphs[
                     paragraphIndex
@@ -296,7 +718,14 @@ export function applyCMSOverrides(gamesData, contentMap) {
       }
     )
 
-    if (deletedGuideIndexes.length > 0) {
+    // --------------------------------------------------------
+    // DELETE BUILT-IN GUIDES
+    // --------------------------------------------------------
+
+    if (
+      deletedGuideIndexes.length >
+      0
+    ) {
       game.guides =
         game.guides.filter(
           (guide) =>
@@ -305,6 +734,10 @@ export function applyCMSOverrides(gamesData, contentMap) {
             )
         )
     }
+
+    // --------------------------------------------------------
+    // ADD CMS GUIDES
+    // --------------------------------------------------------
 
     const cmsGuides =
       getCMSGuides(
@@ -323,18 +756,28 @@ export function applyCMSOverrides(gamesData, contentMap) {
   return cloned
 }
 
-export function useCMSGamesData(gamesData) {
+// ============================================================
+// CMS REACT HOOK
+// ============================================================
+
+export function useCMSGamesData(
+  gamesData
+) {
   const [contentMap, setContentMap] =
     useState({})
 
   useEffect(() => {
     let active = true
 
-    fetchCMSContent().then((data) => {
-      if (active) {
-        setContentMap(data)
+    fetchCMSContent().then(
+      (data) => {
+        if (active) {
+          setContentMap(
+            data || {}
+          )
+        }
       }
-    })
+    )
 
     return () => {
       active = false
