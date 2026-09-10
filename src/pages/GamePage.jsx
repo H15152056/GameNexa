@@ -1,80 +1,20 @@
-﻿import CMSLiveContent from '../components/CMSLiveContent'
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { gamesData } from '../data/gamesData'
 import { useCMSGamesData } from '../cms/cmsContent'
 import { whiteoutHeroMeta, whiteoutHeroes } from '../data/whiteoutHeroes'
 import { genshinCharacters } from '../data/genshinCharacters'
 import { gameCharacters } from '../data/gameCharacters'
-import { getGenshinBuildProfile } from '../games/genshin/genshinBuild'
-import { getWhiteoutBuildProfile } from '../games/whiteout/whiteoutBuild'
-import WhiteoutHub from '../games/whiteout/WhiteoutHub'
 import './GamePage.css'
 import { SEO } from '../SEO'
-
-const DOT = String.fromCodePoint(0x00b7)
 
 function slugify(value = '') {
   return String(value)
     .toLowerCase()
     .trim()
-    .replace(/['\u2019]/g, '')
+    .replace(/['’]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-}
-
-function normalizeCharacterCollection(value) {
-  let current = value
-
-  if (
-    current &&
-    typeof current === 'object' &&
-    current.default &&
-    !Array.isArray(current)
-  ) {
-    current = current.default
-  }
-
-  if (Array.isArray(current)) {
-    return current
-  }
-
-  if (!current || typeof current !== 'object') {
-    return []
-  }
-
-  const candidates = [
-    current.characters,
-    current.genshinCharacters,
-    current.heroes,
-    current.data,
-    current.items,
-    current.list,
-    current.roster,
-    current.results,
-    current.entries,
-  ]
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
-      return candidate
-    }
-  }
-
-  const objectValues = Object.values(current)
-
-  const objectEntries = objectValues.filter(
-    (item) =>
-      item &&
-      typeof item === 'object' &&
-      !Array.isArray(item)
-  )
-
-  if (objectEntries.length > 0) {
-    return objectEntries
-  }
-
-  return []
 }
 
 function getCharacterName(character) {
@@ -83,33 +23,27 @@ function getCharacterName(character) {
     character?.title ||
     character?.heroName ||
     character?.characterName ||
-    character?.displayName ||
-    'Unknown Character'
+    'Unknown Hero'
   )
 }
 
 function getCharacterImage(character) {
   return (
     character?.image ||
-    character?.characterImage ||
-    character?.cardImage ||
-    character?.splash ||
     character?.icon ||
     character?.portrait ||
     character?.img ||
     character?.avatar ||
-    character?.src ||
-    character?.url ||
     ''
   )
 }
 
 function getCharacterRarity(character) {
   return (
-    character?.rarity ??
-    character?.quality ??
-    character?.tier ??
-    character?.rank ??
+    character?.rarity ||
+    character?.quality ||
+    character?.tier ||
+    character?.rank ||
     ''
   )
 }
@@ -125,24 +59,6 @@ function getCharacterType(character) {
   )
 }
 
-function getCharacterElement(character) {
-  return (
-    character?.element ||
-    character?.elements ||
-    ''
-  )
-}
-
-function getCharacterWeapon(character) {
-  const weapon = character?.weapon || character?.weaponType || ''
-
-  if (typeof weapon === 'object') {
-    return weapon?.name || ''
-  }
-
-  return weapon
-}
-
 function getCharacterGeneration(character) {
   return (
     character?.generation ??
@@ -152,14 +68,106 @@ function getCharacterGeneration(character) {
   )
 }
 
-function getCharacterId(character, index = 0) {
-  return (
-    character?.id ||
-    character?.slug ||
-    character?.characterSlug ||
-    character?.heroSlug ||
-    `${slugify(getCharacterName(character))}-${index}`
+const genshinBuildByRole = {
+  'Main DPS': {
+    artifacts: '4pc role / reaction set',
+    mainStats: 'ATK% / Elemental DMG / CRIT',
+    substats: 'CRIT Rate / CRIT DMG > ATK% > ER',
+    talentPriority: 'Normal Attack / Skill / Burst — follow the character kit',
+    weaponAdvice:
+      'Signature weapon first; otherwise CRIT, ATK or Elemental Mastery options that match the kit.',
+  },
+  'Sub DPS': {
+    artifacts:
+      '4pc Golden Troupe / Emblem of Severed Fate / reaction set',
+    mainStats: 'ATK% / Elemental DMG / CRIT',
+    substats: 'CRIT Rate / CRIT DMG > ER > ATK%',
+    talentPriority:
+      'Elemental Skill / Burst > Normal Attack when off-field',
+    weaponAdvice:
+      'Signature or strong CRIT/ER/EM weapon depending on the character’s rotation.',
+  },
+  Support: {
+    artifacts:
+      '4pc Noblesse Oblige / Scroll of the Hero of Cinder City / kit-specific set',
+    mainStats:
+      'ER or HP/DEF/EM as required / Elemental DMG or Healing / CRIT or Healing Bonus',
+    substats:
+      'Energy Recharge > required scaling stat > CRIT/EM',
+    talentPriority: 'Skill / Burst > Normal Attack',
+    weaponAdvice:
+      'Energy Recharge or team-buffing option; use the signature when its passive is relevant.',
+  },
+  DPS: {
+    artifacts:
+      '4pc character/reaction set or Golden Troupe when off-field',
+    mainStats: 'ATK% / Elemental DMG / CRIT',
+    substats:
+      'CRIT Rate / CRIT DMG > ATK% > ER/EM',
+    talentPriority:
+      'Skill / Burst > Normal Attack unless the kit says otherwise',
+    weaponAdvice:
+      'Signature or a high-value CRIT/ATK/EM option suited to the character.',
+  },
+}
+
+const genshinElementGem = {
+  Pyro: 'Agnidus Agate',
+  Hydro: 'Varunada Lazurite',
+  Anemo: 'Vayuda Turquoise',
+  Electro: 'Vajrada Amethyst',
+  Cryo: 'Shivada Jade',
+  Geo: 'Prithiva Topaz',
+  Dendro: 'Nagadus Emerald',
+}
+
+function getGenshinBuildProfile(character) {
+  const role = character?.role || 'Support'
+  const profile =
+    genshinBuildByRole[role] || genshinBuildByRole.Support
+
+  return {
+    ...profile,
+    ascensionGem:
+      genshinElementGem[character?.element] ||
+      'Elemental Ascension Gem',
+    identity: `${character?.element || 'Elemental'} ${
+      character?.weapon || 'Weapon'
+    } · ${role}`,
+  }
+}
+
+function getWhiteoutBuildProfile(character) {
+  const role = character?.role || 'Combat'
+  const isRally = Boolean(
+    character?.rallyJoiner || /Rally/i.test(role)
   )
+  const isHealer = Boolean(
+    character?.healer || /Healer/i.test(role)
+  )
+  const isTank = /Tank|Defense|Garrison/i.test(role)
+
+  return {
+    skillPriority: isHealer
+      ? 'Prioritize healing/support skills, then survivability or team buffs.'
+      : isRally
+        ? 'Prioritize the key expedition/rally skill first, then combat damage and survivability.'
+        : isTank
+          ? 'Prioritize frontline defense/health and the skills that improve your formation’s durability.'
+          : 'Prioritize the main damage skill first, followed by team utility and survivability.',
+    formation: isHealer
+      ? 'Support / Joiner'
+      : isTank
+        ? 'Frontline / Garrison'
+        : isRally
+          ? 'Rally / Joiner'
+          : 'Damage / Arena',
+    exclusiveGear:
+      character?.rarity === 'Mythic' ||
+      character?.quality === 'SSR'
+        ? 'Exclusive Gear recommended'
+        : 'Standard hero progression',
+  }
 }
 
 function GamePage() {
@@ -171,6 +179,14 @@ function GamePage() {
     params.game ||
     ''
 
+  /*
+   * ============================================================
+   * CMS GAME DATA
+   * ============================================================
+   *
+   * This merges the original static gamesData with CMS content.
+   * CMS-created guides are therefore available on this page too.
+   */
   const cmsGamesData = useCMSGamesData(gamesData)
 
   const [search, setSearch] = useState('')
@@ -244,8 +260,9 @@ function GamePage() {
 
     if (Array.isArray(cmsGamesData)) {
       return (
-        cmsGamesData.find((item) => matches('', item)) ||
-        null
+        cmsGamesData.find((item) =>
+          matches('', item)
+        ) || null
       )
     }
 
@@ -256,304 +273,55 @@ function GamePage() {
     return match ? match[1] : null
   }, [gameSlug, cmsGamesData])
 
-  const normalizedGameSlug = slugify(gameSlug)
-
   const isGenshin =
-    normalizedGameSlug === 'genshin-impact' ||
-    slugify(game?.slug) === 'genshin-impact' ||
+    gameSlug === 'genshin-impact' ||
+    game?.slug === 'genshin-impact' ||
     slugify(game?.name) === 'genshin-impact'
 
   const isWhiteout =
-    normalizedGameSlug === 'whiteout-survival' ||
-    slugify(game?.slug) === 'whiteout-survival' ||
+    gameSlug === 'whiteout-survival' ||
+    game?.slug === 'whiteout-survival' ||
     slugify(game?.name) === 'whiteout-survival'
 
   const databaseCharacters = useMemo(() => {
     if (isGenshin) {
-      return normalizeCharacterCollection(
-        genshinCharacters
-      )
+      return Array.isArray(genshinCharacters)
+        ? genshinCharacters
+        : []
     }
 
+    /*
+     * IMPORTANT:
+     * Whiteout heroes MUST come from gamesData.js.
+     * gameCharacters.js is intentionally NOT used for Whiteout.
+     */
     if (isWhiteout) {
-      return normalizeCharacterCollection(
-        whiteoutHeroes
-      )
+      return Array.isArray(whiteoutHeroes)
+        ? whiteoutHeroes
+        : []
     }
 
     if (game?.slug) {
-      return normalizeCharacterCollection(
-        gameCharacters?.[game.slug]
-      )
+      return gameCharacters?.[game.slug] || []
     }
 
     return []
   }, [isGenshin, isWhiteout, game])
 
-  const [cmsCharacterItems, setCmsCharacterItems] =
-    useState([])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadCMSCharacters() {
-      try {
-        const response = await fetch('/api/content', {
-          cache: 'no-store',
-        })
-
-        if (!response.ok) {
-          if (active) setCmsCharacterItems([])
-          return
-        }
-
-        const data = await response.json()
-
-        const contentMap = Object.fromEntries(
-          (Array.isArray(data) ? data : []).map(
-            (item) => [
-              item.content_key,
-              item.content_value,
-            ]
-          )
-        )
-
-        const collectionKey = isGenshin
-          ? 'cms.collection.genshin.characters'
-          : isWhiteout
-            ? 'cms.collection.whiteout-survival.heroes'
-            : ''
-
-        if (!collectionKey) {
-          if (active) setCmsCharacterItems([])
-          return
-        }
-
-        let items = []
-
-        try {
-          const parsed = JSON.parse(
-            contentMap[collectionKey] || '[]'
-          )
-
-          if (Array.isArray(parsed)) {
-            items = parsed.filter(
-              (item) =>
-                item &&
-                item.status !== 'draft'
-            )
-          }
-        } catch {
-          items = []
-        }
-
-        if (active) {
-          setCmsCharacterItems(items)
-        }
-      } catch {
-        if (active) {
-          setCmsCharacterItems([])
-        }
-      }
-    }
-
-    loadCMSCharacters()
-
-    return () => {
-      active = false
-    }
-  }, [isGenshin, isWhiteout])
-
   const allCharacters = useMemo(() => {
-    const staticItems =
-      normalizeCharacterCollection(
-        databaseCharacters
-      ).filter(Boolean)
-
-    const cmsItems = Array.isArray(cmsCharacterItems)
-      ? cmsCharacterItems.filter(Boolean)
-      : []
-
-    if (cmsItems.length === 0) {
-      return staticItems
+    if (!Array.isArray(databaseCharacters)) {
+      return []
     }
 
-    const getIdentity = (item) => {
-      const slug =
-        item?.slug ||
-        item?.id ||
-        item?.characterSlug ||
-        item?.heroSlug ||
-        ''
-
-      const name =
-        item?.name ||
-        item?.title ||
-        item?.characterName ||
-        item?.heroName ||
-        ''
-
-      return {
-        slug: String(slug)
-          .trim()
-          .toLowerCase(),
-        name: String(name)
-          .trim()
-          .toLowerCase(),
-      }
-    }
-
-    const findExistingIndex = (
-      items,
-      cmsItem
-    ) => {
-      const cmsIdentity =
-        getIdentity(cmsItem)
-
-      if (
-        !cmsIdentity.slug &&
-        !cmsIdentity.name
-      ) {
-        return -1
-      }
-
-      return items.findIndex((existing) => {
-        const identity =
-          getIdentity(existing)
-
-        return (
-          (
-            cmsIdentity.slug &&
-            identity.slug &&
-            cmsIdentity.slug ===
-              identity.slug
-          ) ||
-          (
-            cmsIdentity.name &&
-            identity.name &&
-            cmsIdentity.name ===
-              identity.name
-          )
-        )
-      })
-    }
-
-    const merged = [...staticItems]
-
-    cmsItems.forEach((cmsItem, index) => {
-      const existingIndex =
-        findExistingIndex(
-          merged,
-          cmsItem
-        )
-
-      const cmsName =
-        cmsItem?.name ||
-        cmsItem?.title ||
-        cmsItem?.characterName ||
-        cmsItem?.heroName ||
-        `CMS Entry ${index + 1}`
-
-      const normalizedCMSItem = {
-        ...cmsItem,
-
-        id:
-          cmsItem?.id ||
-          cmsItem?.slug ||
-          `cms-${slugify(cmsName)}`,
-
-        slug:
-          cmsItem?.slug ||
-          cmsItem?.id ||
-          slugify(cmsName),
-
-        name: cmsName,
-
-        title:
-          cmsItem?.title ||
-          cmsName,
-
-        characterName:
-          cmsItem?.characterName ||
-          (isGenshin
-            ? cmsName
-            : undefined),
-
-        heroName:
-          cmsItem?.heroName ||
-          (isWhiteout
-            ? cmsName
-            : undefined),
-
-        image:
-          cmsItem?.image ||
-          cmsItem?.characterImage ||
-          cmsItem?.cardImage ||
-          cmsItem?.icon ||
-          cmsItem?.portrait ||
-          '',
-
-        rarity:
-          cmsItem?.rarity ??
-          cmsItem?.quality ??
-          cmsItem?.tier ??
-          cmsItem?.rank ??
-          '',
-
-        element:
-          cmsItem?.element ||
-          cmsItem?.type ||
-          '',
-
-        weapon:
-          cmsItem?.weapon ||
-          cmsItem?.weaponType ||
-          '',
-
-        role:
-          cmsItem?.role ||
-          cmsItem?.class ||
-          '',
-
-        generation:
-          cmsItem?.generation ??
-          cmsItem?.gen ??
-          cmsItem?.generationNumber ??
-          '',
-
-        description:
-          cmsItem?.description ||
-          cmsItem?.desc ||
-          cmsItem?.content ||
-          '',
-      }
-
-      if (existingIndex >= 0) {
-        merged[existingIndex] = {
-          ...merged[existingIndex],
-          ...normalizedCMSItem,
-        }
-      } else {
-        merged.push(normalizedCMSItem)
-      }
-    })
-
-    return merged.filter(Boolean)
-  }, [
-    databaseCharacters,
-    cmsCharacterItems,
-    isGenshin,
-    isWhiteout,
-  ])
+    return databaseCharacters.filter(Boolean)
+  }, [databaseCharacters])
 
   const generations = useMemo(() => {
     if (!isWhiteout) return []
 
     const values = allCharacters
       .map((character) =>
-        Number(
-          getCharacterGeneration(character)
-        )
+        Number(getCharacterGeneration(character))
       )
       .filter(
         (value) =>
@@ -572,12 +340,7 @@ function GamePage() {
       .map((character) =>
         getCharacterRarity(character)
       )
-      .filter(
-        (value) =>
-          value !== '' &&
-          value !== null &&
-          value !== undefined
-      )
+      .filter(Boolean)
 
     return [...new Set(values)]
   }, [allCharacters])
@@ -585,25 +348,20 @@ function GamePage() {
   const types = useMemo(() => {
     const values = allCharacters
       .map((character) =>
-        isGenshin
-          ? getCharacterElement(character) ||
-            getCharacterType(character)
-          : getCharacterType(character)
+        getCharacterType(character)
       )
       .filter(Boolean)
 
     return [...new Set(values)]
-  }, [allCharacters, isGenshin])
+  }, [allCharacters])
 
   const filteredCharacters = useMemo(() => {
-    const query =
-      search.trim().toLowerCase()
+    const query = search.trim().toLowerCase()
 
     let result = allCharacters.filter(
       (character) => {
         const name =
-          getCharacterName(character)
-            .toLowerCase()
+          getCharacterName(character).toLowerCase()
 
         const rarity = String(
           getCharacterRarity(character)
@@ -611,20 +369,6 @@ function GamePage() {
 
         const type = String(
           getCharacterType(character)
-        ).toLowerCase()
-
-        const element = String(
-          getCharacterElement(character)
-        ).toLowerCase()
-
-        const weapon = String(
-          getCharacterWeapon(character)
-        ).toLowerCase()
-
-        const role = String(
-          character?.role ||
-          character?.class ||
-          ''
         ).toLowerCase()
 
         const generation = String(
@@ -636,18 +380,7 @@ function GamePage() {
           name.includes(query) ||
           rarity.includes(query) ||
           type.includes(query) ||
-          element.includes(query) ||
-          weapon.includes(query) ||
-          role.includes(query) ||
           generation.includes(query)
-
-        const filterType =
-          isGenshin
-            ? getCharacterElement(
-                character
-              ) ||
-              getCharacterType(character)
-            : getCharacterType(character)
 
         const matchesRarity =
           rarityFilter === 'all' ||
@@ -657,15 +390,14 @@ function GamePage() {
 
         const matchesType =
           typeFilter === 'all' ||
-          String(filterType) ===
-            typeFilter
+          String(
+            getCharacterType(character)
+          ) === typeFilter
 
         const matchesGeneration =
           generationFilter === 'all' ||
           String(
-            getCharacterGeneration(
-              character
-            )
+            getCharacterGeneration(character)
           ) === generationFilter
 
         return (
@@ -678,44 +410,40 @@ function GamePage() {
     )
 
     if (sortOrder === 'az') {
-      result = [...result].sort(
-        (a, b) =>
-          getCharacterName(a).localeCompare(
-            getCharacterName(b)
-          )
+      result = [...result].sort((a, b) =>
+        getCharacterName(a).localeCompare(
+          getCharacterName(b)
+        )
       )
     }
 
     if (sortOrder === 'za') {
-      result = [...result].sort(
-        (a, b) =>
-          getCharacterName(b).localeCompare(
-            getCharacterName(a)
-          )
+      result = [...result].sort((a, b) =>
+        getCharacterName(b).localeCompare(
+          getCharacterName(a)
+        )
       )
     }
 
     if (sortOrder === 'generation') {
-      result = [...result].sort(
-        (a, b) => {
-          const genA = Number(
-            getCharacterGeneration(a)
-          )
+      result = [...result].sort((a, b) => {
+        const genA = Number(
+          getCharacterGeneration(a)
+        )
 
-          const genB = Number(
-            getCharacterGeneration(b)
-          )
+        const genB = Number(
+          getCharacterGeneration(b)
+        )
 
-          return (
-            (Number.isFinite(genB)
-              ? genB
-              : -1) -
-            (Number.isFinite(genA)
-              ? genA
-              : -1)
-          )
-        }
-      )
+        return (
+          (Number.isFinite(genB)
+            ? genB
+            : -1) -
+          (Number.isFinite(genA)
+            ? genA
+            : -1)
+        )
+      })
     }
 
     return result
@@ -726,7 +454,6 @@ function GamePage() {
     typeFilter,
     generationFilter,
     sortOrder,
-    isGenshin,
   ])
 
   const resetFilters = () => {
@@ -761,9 +488,7 @@ function GamePage() {
 
   useEffect(() => {
     document.body.style.overflow =
-      selectedCharacter
-        ? 'hidden'
-        : ''
+      selectedCharacter ? 'hidden' : ''
 
     return () => {
       document.body.style.overflow = ''
@@ -789,7 +514,7 @@ function GamePage() {
         <div className="game-page-container">
           <section className="game-not-found">
             <span className="not-found-icon">
-              &#x1F3AE;
+              🎮
             </span>
 
             <h1>Game Not Found</h1>
@@ -811,22 +536,11 @@ function GamePage() {
     )
   }
 
-  const gameName =
-    game.name || 'Game'
-
-  const seoTitle = isWhiteout
-    ? 'Whiteout Survival Heroes, Tier List, Battle Maps & Hub | GameNexa'
-    : isGenshin
-      ? 'Genshin Impact Characters, Builds & Guides | GameNexa'
-      : `${gameName} Database & Guides | GameNexa`
+  const gameName = game.name || 'Game'
 
   const gameDescription =
-    isWhiteout
-      ? 'Full Whiteout Survival hero database with roles and generations, plus a complete hub: battle maps, facilities, fortresses, strongholds, resources, alliance territory, events, buildings, research, troops and calculators.'
-      : isGenshin
-        ? 'Browse every Genshin Impact character with elements, weapons, roles and build direction - artifacts, main stats, talent priority and weapon advice.'
-        : game.description ||
-          `Explore the latest ${gameName} characters, guides, builds, and database information on GameNexa.`
+    game.description ||
+    `Explore the latest ${gameName} characters, guides, builds, and database information on GameNexa.`
 
   const heroImage =
     game.heroImage ||
@@ -834,21 +548,15 @@ function GamePage() {
     game.image ||
     ''
 
-  const featured = Array.isArray(
-    game.featured
-  )
+  const featured = Array.isArray(game.featured)
     ? game.featured
     : []
 
-  const guides = Array.isArray(
-    game.guides
-  )
+  const guides = Array.isArray(game.guides)
     ? game.guides
     : []
 
-  const strategy = Array.isArray(
-    game.strategy
-  )
+  const strategy = Array.isArray(game.strategy)
     ? game.strategy
     : []
 
@@ -866,8 +574,83 @@ function GamePage() {
 
   return (
     <main className={gameClass}>
+      <style>{`
+        .character-modal {
+          position: relative !important;
+          isolation: isolate;
+          overflow: hidden;
+          background: transparent !important;
+        }
+
+        .character-modal-background {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image: var(--character-modal-image);
+          background-size: cover;
+          background-position: center top;
+          background-repeat: no-repeat;
+          transform: scale(1.04);
+          filter: blur(2px);
+          pointer-events: none;
+        }
+
+        .character-modal-background::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(7, 9, 18, 0.28) 0%, rgba(7, 9, 18, 0.58) 34%, rgba(7, 9, 18, 0.88) 68%, rgba(7, 9, 18, 0.98) 100%);
+        }
+
+        .character-modal-content {
+          position: relative;
+          z-index: 1;
+          min-height: 100%;
+        }
+
+        .character-modal .modal-header {
+          position: relative;
+          z-index: 2;
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0.20), rgba(0, 0, 0, 0.08));
+        }
+
+        .character-modal .modal-body {
+          position: relative;
+          z-index: 2;
+        }
+
+        .character-modal .modal-section,
+        .character-modal .detail-box,
+        .character-modal .build-box,
+        .character-modal .build-callout,
+        .character-modal .skill-card {
+          backdrop-filter: blur(10px);
+        }
+
+        .character-modal .modal-character-image {
+          position: relative;
+          z-index: 3;
+          overflow: hidden;
+          background: rgba(0, 0, 0, 0.30);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
+        }
+
+        .character-modal .modal-character-image img {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+        }
+
+        .character-modal .modal-close {
+          position: relative;
+          z-index: 10;
+        }
+      `}</style>
+
       <SEO
-        title={seoTitle}
+        title={`${gameName} Database & Guides | GameNexa`}
         description={gameDescription}
       />
 
@@ -876,10 +659,11 @@ function GamePage() {
           to="/"
           className="back-link"
         >
-          <span>&#x2190;</span>
+          <span>←</span>
           Back to Games
         </Link>
 
+        {/* HERO */}
         <section
           className="game-hero"
           style={
@@ -910,17 +694,11 @@ function GamePage() {
                   {allCharacters.length}
                 </strong>
 
-                <span>
-                  {isWhiteout
-                    ? 'Heroes'
-                    : 'Characters'}
-                </span>
+                <span>Characters</span>
               </div>
 
               <div className="game-stat">
-                <strong>
-                  {guides.length}
-                </strong>
+                <strong>{guides.length}</strong>
 
                 <span>Guides</span>
               </div>
@@ -928,6 +706,7 @@ function GamePage() {
           </div>
         </section>
 
+        {/* WHITEOUT QUICK INTELLIGENCE */}
         {isWhiteout && (
           <section className="whiteout-intel">
             <div className="whiteout-intel-heading">
@@ -950,13 +729,9 @@ function GamePage() {
                 <span>HEALERS</span>
 
                 <strong>
-                  {Array.isArray(
-                    whiteoutHeroMeta?.healerNames
-                  )
-                    ? whiteoutHeroMeta.healerNames.join(
-                        ` ${DOT} `
-                      )
-                    : 'Philly · Xura · Bertha'}
+                  {whiteoutHeroMeta.healerNames.join(
+                    ' · '
+                  )}
                 </strong>
 
                 <small>
@@ -968,7 +743,7 @@ function GamePage() {
                 <span>CORE JOINERS</span>
 
                 <strong>
-                  Jessie {DOT} Jasser {DOT} Jeronimo
+                  Jessie · Jasser · Jeronimo
                 </strong>
 
                 <small>
@@ -981,7 +756,7 @@ function GamePage() {
                 <span>CLASSES</span>
 
                 <strong>
-                  Infantry {DOT} Lancer {DOT} Marksman
+                  Infantry · Lancer · Marksman
                 </strong>
 
                 <small>
@@ -994,9 +769,8 @@ function GamePage() {
                 <span>ROSTER</span>
 
                 <strong>
-                  {whiteoutHeroMeta?.rosterCount ||
-                    allCharacters.length}{' '}
-                  heroes {DOT} Gen 1-17
+                  {whiteoutHeroMeta.rosterCount} heroes
+                  · Gen 1–17
                 </strong>
 
                 <small>
@@ -1008,66 +782,59 @@ function GamePage() {
           </section>
         )}
 
-        {isWhiteout && <WhiteoutHub />}
+        {/* DATABASE */}
+        <section className="database-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-kicker">
+                DATABASE
+              </span>
 
-        <CMSLiveContent
-          gameSlug={game.slug}
-        />
+              <h2>
+                {isWhiteout
+                  ? 'Whiteout Survival Heroes'
+                  : isGenshin
+                    ? 'Genshin Impact Characters'
+                    : `${gameName} Characters`}
+              </h2>
 
-        {isGenshin && (
-          <section className="gnx-character-database">
-            <div className="gnx-character-heading">
-              <div>
-                <span className="section-kicker">
-                  {isWhiteout
-                    ? 'WHITEOUT SURVIVAL'
-                    : 'GENSHIN IMPACT'}
-                </span>
-
-                <h2>
-                  {isWhiteout
-                    ? 'Hero Database'
-                    : 'Character Database'}
-                </h2>
-
-                <p>
-                  {isWhiteout
-                    ? `Browse ${allCharacters.length} heroes by name, class, rarity and generation.`
-                    : `Browse ${allCharacters.length} Genshin Impact characters by name, element, rarity and weapon.`}
-                </p>
-              </div>
-
-              <div className="gnx-character-count">
-                <strong>
-                  {filteredCharacters.length}
-                </strong>
-
-                <span>
-                  {isWhiteout
-                    ? 'heroes shown'
-                    : 'characters shown'}
-                </span>
-              </div>
+              <p>
+                Browse, search and explore the
+                complete character database.
+              </p>
             </div>
 
-            <div className="gnx-character-filters">
+            <div className="database-total">
+              <strong>
+                {filteredCharacters.length}
+              </strong>
+
+              <span>
+                {filteredCharacters.length === 1
+                  ? 'Hero Found'
+                  : 'Heroes Found'}
+              </span>
+            </div>
+          </div>
+
+          {/* FILTERS */}
+          <div className="character-filters">
+            <label className="filter-search">
+              <span>⌕</span>
+
               <input
                 type="search"
                 value={search}
                 onChange={(event) =>
                   setSearch(event.target.value)
                 }
-                placeholder={
-                  isWhiteout
-                    ? 'Search heroes...'
-                    : 'Search characters, elements, weapons...'
-                }
-                aria-label={
-                  isWhiteout
-                    ? 'Search heroes'
-                    : 'Search Genshin characters'
-                }
+                placeholder="Search heroes..."
+                aria-label="Search heroes"
               />
+            </label>
+
+            <label className="filter-control">
+              <span>Rarity</span>
 
               <select
                 value={rarityFilter}
@@ -1076,7 +843,6 @@ function GamePage() {
                     event.target.value
                   )
                 }
-                aria-label="Filter by rarity"
               >
                 <option value="all">
                   All Rarities
@@ -1084,13 +850,17 @@ function GamePage() {
 
                 {rarities.map((rarity) => (
                   <option
-                    key={String(rarity)}
-                    value={String(rarity)}
+                    key={rarity}
+                    value={rarity}
                   >
-                    {String(rarity)}
+                    {rarity}
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="filter-control">
+              <span>Type</span>
 
               <select
                 value={typeFilter}
@@ -1099,59 +869,56 @@ function GamePage() {
                     event.target.value
                   )
                 }
-                aria-label={
-                  isWhiteout
-                    ? 'Filter by class'
-                    : 'Filter by element'
-                }
               >
                 <option value="all">
-                  {isWhiteout
-                    ? 'All Classes'
-                    : 'All Elements'}
+                  All Types
                 </option>
 
                 {types.map((type) => (
                   <option
-                    key={String(type)}
-                    value={String(type)}
+                    key={type}
+                    value={type}
                   >
-                    {String(type)}
+                    {type}
                   </option>
                 ))}
               </select>
+            </label>
 
-              {isWhiteout &&
-                generations.length > 0 && (
-                  <select
-                    value={
-                      generationFilter
-                    }
-                    onChange={(event) =>
-                      setGenerationFilter(
-                        event.target.value
-                      )
-                    }
-                    aria-label="Filter by generation"
-                  >
-                    <option value="all">
-                      All Generations
-                    </option>
+            {isWhiteout && (
+              <label className="filter-control">
+                <span>Generation</span>
 
-                    {generations.map(
-                      (generation) => (
-                        <option
-                          key={generation}
-                          value={String(
-                            generation
-                          )}
-                        >
-                          Generation {generation}
-                        </option>
-                      )
-                    )}
-                  </select>
-                )}
+                <select
+                  value={generationFilter}
+                  onChange={(event) =>
+                    setGenerationFilter(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="all">
+                    All Generations
+                  </option>
+
+                  {generations.map(
+                    (generation) => (
+                      <option
+                        key={generation}
+                        value={String(
+                          generation
+                        )}
+                      >
+                        Generation {generation}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            )}
+
+            <label className="filter-control">
+              <span>Sort</span>
 
               <select
                 value={sortOrder}
@@ -1160,18 +927,17 @@ function GamePage() {
                     event.target.value
                   )
                 }
-                aria-label="Sort characters"
               >
                 <option value="default">
-                  Default Order
+                  Default
                 </option>
 
                 <option value="az">
-                  Name A-Z
+                  A → Z
                 </option>
 
                 <option value="za">
-                  Name Z-A
+                  Z → A
                 </option>
 
                 {isWhiteout && (
@@ -1180,211 +946,258 @@ function GamePage() {
                   </option>
                 )}
               </select>
+            </label>
+
+            <button
+              type="button"
+              className="reset-filters"
+              onClick={resetFilters}
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* CHARACTER GRID */}
+          {filteredCharacters.length > 0 ? (
+            <div
+              className={`character-grid ${
+                isWhiteout
+                  ? 'whiteout-character-grid'
+                  : ''
+              }`}
+            >
+              {filteredCharacters.map(
+                (character, index) => {
+                  const name =
+                    getCharacterName(
+                      character
+                    )
+
+                  const image =
+                    getCharacterImage(
+                      character
+                    )
+
+                  const rarity =
+                    getCharacterRarity(
+                      character
+                    )
+
+                  const type =
+                    getCharacterType(
+                      character
+                    )
+
+                  const generation =
+                    getCharacterGeneration(
+                      character
+                    )
+
+                  return (
+                    <article
+                      className="character-card"
+                      key={
+                        character.id ||
+                        character.slug ||
+                        `${name}-${generation}-${index}`
+                      }
+                      onClick={() =>
+                        setSelectedCharacter(
+                          character
+                        )
+                      }
+                    >
+                      <div className="character-card-image">
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={name}
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.style.display =
+                                'none'
+
+                              const fallback =
+                                event.currentTarget.parentElement?.querySelector(
+                                  '.character-image-fallback'
+                                )
+
+                              if (fallback) {
+                                fallback.style.display =
+                                  'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+
+                        <div
+                          className="character-image-fallback"
+                          style={{
+                            display: image
+                              ? 'none'
+                              : 'flex',
+                          }}
+                        >
+                          <span>✦</span>
+                        </div>
+
+                        <div className="character-image-gradient" />
+
+                        {generation !== '' &&
+                          generation !==
+                            null &&
+                          generation !==
+                            undefined && (
+                            <span className="generation-badge">
+                              GEN {generation}
+                            </span>
+                          )}
+                      </div>
+
+                      <div className="character-card-content">
+                        <div className="character-card-topline">
+                          <span className="character-type">
+                            {type ||
+                              'Character'}
+                          </span>
+
+                          {rarity && (
+                            <span className="character-rarity">
+                              {rarity}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3>{name}</h3>
+
+                        {character.subtitle && (
+                          <p className="character-subtitle">
+                            {character.subtitle}
+                          </p>
+                        )}
+
+                        {character.role && (
+                          <div className="character-role">
+                            <span>Role</span>
+
+                            <strong>
+                              {character.role}
+                            </strong>
+                          </div>
+                        )}
+
+                        <div className="character-card-meta">
+                          {isGenshin ? (
+                            <>
+                              <span>
+                                <b>Element</b>
+                                {character.element ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Weapon</b>
+                                {character.weapon ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Region</b>
+                                {character.region ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Version</b>
+                                {character.version ||
+                                  '—'}
+                              </span>
+                            </>
+                          ) : isWhiteout ? (
+                            <>
+                              <span>
+                                <b>Class</b>
+                                {character.troopType ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Gen</b>
+                                {character.generation ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Tier</b>
+                                {character.tier ||
+                                  '—'}
+                              </span>
+
+                              <span>
+                                <b>Best for</b>
+                                {character.bestFor ||
+                                  'General'}
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+
+                        <p className="character-description">
+                          {character.description ||
+                            character.notes ||
+                            (isGenshin
+                              ? `${character.name} is a ${
+                                  character.role?.toLowerCase() ||
+                                  'combat'
+                                } character. Open the profile for build direction, stats and progression notes.`
+                              : `${character.name} is a ${
+                                  character.role?.toLowerCase() ||
+                                  'combat'
+                                } hero. Open the profile for role, tier, formation and upgrade guidance.`)}
+                        </p>
+
+                        <button
+                          type="button"
+                          className="view-details-btn"
+                          onClick={(event) => {
+                            event.stopPropagation()
+
+                            setSelectedCharacter(
+                              character
+                            )
+                          }}
+                        >
+                          View Details
+                          <span>→</span>
+                        </button>
+                      </div>
+                    </article>
+                  )
+                }
+              )}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <span>⌕</span>
+
+              <h3>No heroes found</h3>
+
+              <p>
+                Try changing your search or
+                filters.
+              </p>
 
               <button
                 type="button"
                 onClick={resetFilters}
               >
-                Reset
+                Clear Filters
               </button>
             </div>
+          )}
+        </section>
 
-            {filteredCharacters.length > 0 ? (
-              <div className="gnx-character-grid">
-                {filteredCharacters.map(
-                  (character, index) => {
-                    const name =
-                      getCharacterName(
-                        character
-                      )
-
-                    const image =
-                      getCharacterImage(
-                        character
-                      )
-
-                    const rarity =
-                      getCharacterRarity(
-                        character
-                      )
-
-                    const element =
-                      getCharacterElement(
-                        character
-                      )
-
-                    const type =
-                      getCharacterType(
-                        character
-                      )
-
-                    const weapon =
-                      getCharacterWeapon(
-                        character
-                      )
-
-                    const generation =
-                      getCharacterGeneration(
-                        character
-                      )
-
-                    const role =
-                      character?.role ||
-                      character?.class ||
-                      ''
-
-                    return (
-                      <button
-                        type="button"
-                        className="gnx-character-card"
-                        key={getCharacterId(
-                          character,
-                          index
-                        )}
-                        onClick={() =>
-                          setSelectedCharacter(
-                            character
-                          )
-                        }
-                      >
-                        <div className="gnx-character-image">
-                          {image ? (
-                            <img
-                              src={image}
-                              alt={name}
-                              loading="lazy"
-                              onError={(event) => {
-                                event.currentTarget.style.display =
-                                  'none'
-
-                                const fallback =
-                                  event.currentTarget
-                                    .parentElement
-                                    ?.querySelector(
-                                      '.gnx-character-image-fallback'
-                                    )
-
-                                if (
-                                  fallback
-                                ) {
-                                  fallback.style.display =
-                                    'flex'
-                                }
-                              }}
-                            />
-                          ) : null}
-
-                          <div
-                            className="gnx-character-image-fallback"
-                            style={{
-                              display: image
-                                ? 'none'
-                                : 'flex',
-                            }}
-                          >
-                            <span>
-                              {isWhiteout
-                                ? '&#x1F9B8;'
-                                : '&#x2726;'}
-                            </span>
-                          </div>
-
-                          {rarity && (
-                            <span className="gnx-character-rarity">
-                              {String(rarity)}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="gnx-character-content">
-                          <h3>{name}</h3>
-
-                          <div className="gnx-character-meta">
-                            {isGenshin &&
-                              element && (
-                                <span>
-                                  {String(
-                                    element
-                                  )}
-                                </span>
-                              )}
-
-                            {isGenshin &&
-                              weapon && (
-                                <span>
-                                  {String(
-                                    weapon
-                                  )}
-                                </span>
-                              )}
-
-                            {isWhiteout &&
-                              type && (
-                                <span>
-                                  {String(
-                                    type
-                                  )}
-                                </span>
-                              )}
-
-                            {role && (
-                              <span>
-                                {String(
-                                  role
-                                )}
-                              </span>
-                            )}
-
-                            {isWhiteout &&
-                              generation !==
-                                '' && (
-                                <span>
-                                  Gen{' '}
-                                  {String(
-                                    generation
-                                  )}
-                                </span>
-                              )}
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  }
-                )}
-              </div>
-            ) : (
-              <div className="gnx-character-empty">
-                <span>
-                  &#x1F50E;
-                </span>
-
-                <h3>
-                  {allCharacters.length > 0
-                    ? 'No characters match your filters'
-                    : isGenshin
-                      ? 'Genshin character data was not found'
-                      : 'Hero data was not found'}
-                </h3>
-
-                <p>
-                  {allCharacters.length > 0
-                    ? 'Try changing your search or filters.'
-                    : 'Check the local character database and CMS collection.'}
-                </p>
-
-                {allCharacters.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
+        {/* FEATURED */}
         {featured.length > 0 && (
           <section className="content-section">
             <div className="section-title-row">
@@ -1398,61 +1211,60 @@ function GamePage() {
             </div>
 
             <div className="featured-grid">
-              {featured.map(
-                (item, index) => (
-                  <article
-                    className="featured-card"
-                    key={
-                      item.id ||
-                      item.title ||
-                      index
-                    }
-                  >
-                    {item.image && (
-                      <div className="featured-image">
-                        <img
-                          src={item.image}
-                          alt={
-                            item.title ||
-                            'Featured content'
-                          }
-                          loading="lazy"
-                        />
-                      </div>
+              {featured.map((item, index) => (
+                <article
+                  className="featured-card"
+                  key={
+                    item.id ||
+                    item.title ||
+                    index
+                  }
+                >
+                  {item.image && (
+                    <div className="featured-image">
+                      <img
+                        src={item.image}
+                        alt={
+                          item.title ||
+                          'Featured content'
+                        }
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+
+                  <div className="featured-content">
+                    {item.category && (
+                      <span>
+                        {item.category}
+                      </span>
                     )}
 
-                    <div className="featured-content">
-                      {item.category && (
-                        <span>
-                          {item.category}
-                        </span>
-                      )}
+                    <h3>{item.title}</h3>
 
-                      <h3>{item.title}</h3>
+                    {item.description && (
+                      <p>
+                        {item.description}
+                      </p>
+                    )}
 
-                      {item.description && (
-                        <p>
-                          {item.description}
-                        </p>
-                      )}
-
-                      {item.link && (
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Explore &#x2192;
-                        </a>
-                      )}
-                    </div>
-                  </article>
-                )
-              )}
+                    {item.link && (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Explore →
+                      </a>
+                    )}
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         )}
 
+        {/* WHITEOUT STRATEGY */}
         {isWhiteout && (
           <section className="content-section strategy-hub">
             <div className="section-title-row">
@@ -1480,65 +1292,58 @@ function GamePage() {
                           'Hero Generations',
                         description:
                           'Understand hero generations and build your lineup around the strongest available heroes.',
-                        icon: '&#x2694;&#xFE0F;',
+                        icon: '⚔',
                       },
                       {
-                        title:
-                          'Bear Trap',
+                        title: 'Bear Trap',
                         description:
                           'Choose the right rally heroes and maximize your damage during Bear Trap.',
-                        icon: '&#x1F43B;',
+                        icon: '🐻',
                       },
                       {
                         title: 'Arena',
                         description:
                           'Learn which heroes perform best in PvP and how to build an effective Arena lineup.',
-                        icon: '&#x1F3C6;',
+                        icon: '🏆',
                       },
                     ]
-              ).map(
-                (item, index) => (
-                  <article
-                    className="strategy-card"
-                    key={
-                      item.id ||
-                      item.title ||
-                      index
-                    }
-                  >
-                    <div
-                      className="strategy-icon"
-                      dangerouslySetInnerHTML={{
-                        __html:
-                          item.icon ||
-                          '&#x2726;',
-                      }}
-                    />
+              ).map((item, index) => (
+                <article
+                  className="strategy-card"
+                  key={
+                    item.id ||
+                    item.title ||
+                    index
+                  }
+                >
+                  <div className="strategy-icon">
+                    {item.icon || '✦'}
+                  </div>
 
-                    <h3>{item.title}</h3>
+                  <h3>{item.title}</h3>
 
-                    <p>
-                      {item.description ||
-                        item.text ||
-                        'Useful Whiteout Survival strategy information.'}
-                    </p>
+                  <p>
+                    {item.description ||
+                      item.text ||
+                      'Useful Whiteout Survival strategy information.'}
+                  </p>
 
-                    {item.link && (
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Learn More &#x2192;
-                      </a>
-                    )}
-                  </article>
-                )
-              )}
+                  {item.link && (
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Learn More →
+                    </a>
+                  )}
+                </article>
+              ))}
             </div>
           </section>
         )}
 
+        {/* GUIDES */}
         {guides.length > 0 && (
           <section className="content-section">
             <div className="section-title-row">
@@ -1552,50 +1357,46 @@ function GamePage() {
             </div>
 
             <div className="guides-grid">
-              {guides.map(
-                (guide, index) => (
-                  <Link
-                    key={`${game.slug}-guide-${index}`}
-                    to={`/game/${game.slug}/guides/${index}`}
-                    className="guide-card"
-                  >
-                    {guide.image && (
-                      <div className="guide-image">
-                        <img
-                          src={guide.image}
-                          alt={
-                            guide.title ||
-                            'Game guide'
-                          }
-                          loading="lazy"
-                        />
-                      </div>
+              {guides.map((guide, index) => (
+                <Link
+                  key={`${game.slug}-guide-${index}`}
+                  to={`/game/${game.slug}/guides/${index}`}
+                  className="guide-card"
+                >
+                  {guide.image && (
+                    <div className="guide-image">
+                      <img
+                        src={guide.image}
+                        alt={
+                          guide.title ||
+                          'Game guide'
+                        }
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+
+                  <div className="guide-content">
+                    {guide.category && (
+                      <span className="guide-category">
+                        {guide.category}
+                      </span>
                     )}
 
-                    <div className="guide-content">
-                      {guide.category && (
-                        <span className="guide-category">
-                          {guide.category}
-                        </span>
-                      )}
+                    <h3>{guide.title}</h3>
 
-                      <h3>
-                        {guide.title}
-                      </h3>
+                    <p>
+                      {guide.desc ||
+                        guide.description ||
+                        'Complete guide and useful information.'}
+                    </p>
 
-                      <p>
-                        {guide.desc ||
-                          guide.description ||
-                          'Complete guide and useful information.'}
-                      </p>
-
-                      <span className="guide-read-link">
-                        Read Guide &#x2192;
-                      </span>
-                    </div>
-                  </Link>
-                )
-              )}
+                    <span className="guide-read-link">
+                      Read Guide →
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </section>
         )}
@@ -1610,6 +1411,7 @@ function GamePage() {
         )}
       </div>
 
+      {/* CHARACTER MODAL */}
       {selectedCharacter && (
         <div
           className="character-modal-overlay"
@@ -1629,7 +1431,18 @@ function GamePage() {
             aria-label={`${getCharacterName(
               selectedCharacter
             )} details`}
+            style={{
+              '--character-modal-image': getCharacterImage(
+                selectedCharacter
+              )
+                ? `url("${getCharacterImage(
+                    selectedCharacter
+                  )}")`
+                : 'none',
+            }}
           >
+            <div className="character-modal-background" />
+            <div className="character-modal-content">
             <button
               type="button"
               className="modal-close"
@@ -1638,7 +1451,7 @@ function GamePage() {
               }
               aria-label="Close"
             >
-              &#x00D7;
+              ×
             </button>
 
             <div className="modal-header">
@@ -1655,7 +1468,7 @@ function GamePage() {
                     )}
                   />
                 ) : (
-                  <span>&#x2726;</span>
+                  <span>✦</span>
                 )}
               </div>
 
@@ -1718,16 +1531,14 @@ function GamePage() {
                           selectedCharacter.element ||
                           ''
                         } character using a ${
-                          getCharacterWeapon(
-                            selectedCharacter
-                          ) ||
+                          selectedCharacter.weapon ||
                           'weapon'
                         }. Use the build snapshot below as a practical starting point, then tune it to your team and rotation.`
                       : `${getCharacterName(
                           selectedCharacter
                         )} is a Generation ${
                           selectedCharacter.generation ||
-                          '-'
+                          '—'
                         } ${
                           selectedCharacter.troopType ||
                           ''
@@ -1782,9 +1593,7 @@ function GamePage() {
                 {selectedCharacter.rallyJoiner !==
                   undefined && (
                   <div className="detail-box">
-                    <span>
-                      Rally Joiner
-                    </span>
+                    <span>Rally Joiner</span>
 
                     <strong>
                       {selectedCharacter.rallyJoiner
@@ -1819,9 +1628,7 @@ function GamePage() {
                   selectedCharacter.generation !==
                     null && (
                     <div className="detail-box">
-                      <span>
-                        Generation
-                      </span>
+                      <span>Generation</span>
 
                       <strong>
                         {
@@ -1836,9 +1643,7 @@ function GamePage() {
                     <span>Element</span>
 
                     <strong>
-                      {
-                        selectedCharacter.element
-                      }
+                      {selectedCharacter.element}
                     </strong>
                   </div>
                 )}
@@ -1850,8 +1655,8 @@ function GamePage() {
                     <strong>
                       {typeof selectedCharacter.weapon ===
                       'object'
-                        ? selectedCharacter
-                            .weapon?.name
+                        ? selectedCharacter.weapon
+                            .name
                         : selectedCharacter.weapon}
                     </strong>
                   </div>
@@ -1894,9 +1699,7 @@ function GamePage() {
                     <span>Model</span>
 
                     <strong>
-                      {
-                        selectedCharacter.modelType
-                      }
+                      {selectedCharacter.modelType}
                     </strong>
                   </div>
                 )}
@@ -1906,9 +1709,7 @@ function GamePage() {
                     <span>Bear Trap</span>
 
                     <strong>
-                      {
-                        selectedCharacter.bearTrap
-                      }
+                      {selectedCharacter.bearTrap}
                     </strong>
                   </div>
                 )}
@@ -2017,8 +1818,9 @@ function GamePage() {
                           {
                             selectedBuildProfile.ascensionGem
                           }{' '}
-                          + character-specific local,
-                          boss and enemy materials.
+                          + character-specific
+                          local, boss and enemy
+                          materials.
                         </span>
                       </div>
                     </>
@@ -2050,7 +1852,9 @@ function GamePage() {
                         </div>
 
                         <div className="build-box">
-                          <span>Class</span>
+                          <span>
+                            Class
+                          </span>
 
                           <strong>
                             {selectedCharacter.troopType ||
@@ -2088,9 +1892,7 @@ function GamePage() {
 
               {selectedCharacter.synergy && (
                 <section className="modal-section modal-advice-section">
-                  <h3>
-                    Team Synergy
-                  </h3>
+                  <h3>Team Synergy</h3>
 
                   <p>
                     {selectedCharacter.synergy}
@@ -2100,9 +1902,7 @@ function GamePage() {
 
               {selectedCharacter.notes && (
                 <section className="modal-section modal-advice-section">
-                  <h3>
-                    GameNexa Notes
-                  </h3>
+                  <h3>GameNexa Notes</h3>
 
                   <p>
                     {selectedCharacter.notes}
@@ -2114,17 +1914,14 @@ function GamePage() {
                 Array.isArray(
                   selectedCharacter.skills
                 ) &&
-                selectedCharacter.skills
-                  .length > 0 && (
+                selectedCharacter.skills.length >
+                  0 && (
                   <section className="modal-section">
                     <h3>Skills</h3>
 
                     <div className="skills-list">
                       {selectedCharacter.skills.map(
-                        (
-                          skill,
-                          index
-                        ) => (
+                        (skill, index) => (
                           <article
                             className="skill-card"
                             key={
@@ -2135,14 +1932,11 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={
-                                  skill.image
-                                }
+                                src={skill.image}
                                 alt={
                                   skill.name ||
                                   'Skill'
                                 }
-                                loading="lazy"
                               />
                             )}
 
@@ -2211,16 +2005,11 @@ function GamePage() {
                   selectedCharacter.expedition
                 ) && (
                   <section className="modal-section">
-                    <h3>
-                      Expedition
-                    </h3>
+                    <h3>Expedition</h3>
 
                     <div className="skills-list">
                       {selectedCharacter.expedition.map(
-                        (
-                          skill,
-                          index
-                        ) => (
+                        (skill, index) => (
                           <article
                             className="skill-card"
                             key={
@@ -2231,14 +2020,11 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={
-                                  skill.image
-                                }
+                                src={skill.image}
                                 alt={
                                   skill.name ||
                                   'Skill'
                                 }
-                                loading="lazy"
                               />
                             )}
 
@@ -2280,22 +2066,18 @@ function GamePage() {
                 typeof selectedCharacter.weapon ===
                   'object' &&
                 Array.isArray(
-                  selectedCharacter.weapon
-                    .skills
+                  selectedCharacter.weapon.skills
                 ) && (
                   <section className="modal-section">
                     <h3>
-                      {selectedCharacter
-                          .weapon?.name ||
+                      {selectedCharacter.weapon
+                        .name ||
                         'Weapon'}
                     </h3>
 
                     <div className="skills-list">
                       {selectedCharacter.weapon.skills.map(
-                        (
-                          skill,
-                          index
-                        ) => (
+                        (skill, index) => (
                           <article
                             className="skill-card"
                             key={
@@ -2306,14 +2088,11 @@ function GamePage() {
                           >
                             {skill.image && (
                               <img
-                                src={
-                                  skill.image
-                                }
+                                src={skill.image}
                                 alt={
                                   skill.name ||
                                   'Weapon skill'
                                 }
-                                loading="lazy"
                               />
                             )}
 
@@ -2353,9 +2132,7 @@ function GamePage() {
 
               {selectedCharacter.howToGet && (
                 <section className="modal-section">
-                  <h3>
-                    How to Get
-                  </h3>
+                  <h3>How to Get</h3>
 
                   <p>
                     {
@@ -2375,242 +2152,10 @@ function GamePage() {
                 </section>
               )}
             </div>
+            </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .gnx-character-database {
-          margin: 32px 0;
-          padding: 28px;
-          border-radius: 22px;
-          background: var(--card-bg, rgba(255,255,255,.04));
-          border: 1px solid var(--border-color, rgba(255,255,255,.10));
-        }
-
-        .gnx-character-heading {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 20px;
-          margin-bottom: 22px;
-        }
-
-        .gnx-character-heading h2 {
-          margin: 5px 0 8px;
-        }
-
-        .gnx-character-heading p {
-          margin: 0;
-          opacity: .72;
-        }
-
-        .gnx-character-count {
-          min-width: 110px;
-          padding: 12px 16px;
-          border-radius: 14px;
-          text-align: center;
-          background: rgba(255,255,255,.06);
-        }
-
-        .gnx-character-count strong {
-          display: block;
-          font-size: 24px;
-        }
-
-        .gnx-character-count span {
-          display: block;
-          margin-top: 2px;
-          font-size: 12px;
-          opacity: .65;
-        }
-
-        .gnx-character-filters {
-          display: grid;
-          grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(130px, 1fr));
-          gap: 10px;
-          margin-bottom: 22px;
-        }
-
-        .gnx-character-filters input,
-        .gnx-character-filters select,
-        .gnx-character-filters button {
-          width: 100%;
-          min-height: 44px;
-          padding: 0 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(255,255,255,.12);
-          background: rgba(0,0,0,.16);
-          color: inherit;
-          font: inherit;
-        }
-
-        .gnx-character-filters button {
-          cursor: pointer;
-          font-weight: 700;
-        }
-
-        .gnx-character-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-          gap: 16px;
-        }
-
-        .gnx-character-card {
-          display: block;
-          width: 100%;
-          padding: 0;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,.10);
-          border-radius: 16px;
-          background: rgba(255,255,255,.035);
-          color: inherit;
-          text-align: left;
-          cursor: pointer;
-          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-        }
-
-        .gnx-character-card:hover {
-          transform: translateY(-4px);
-          border-color: rgba(255,255,255,.24);
-          box-shadow: 0 12px 28px rgba(0,0,0,.20);
-        }
-
-        .gnx-character-image {
-          position: relative;
-          aspect-ratio: 3 / 4;
-          overflow: hidden;
-          background: rgba(0,0,0,.16);
-        }
-
-        .gnx-character-image img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
-        .gnx-character-image-fallback {
-          position: absolute;
-          inset: 0;
-          align-items: center;
-          justify-content: center;
-          font-size: 42px;
-          opacity: .45;
-        }
-
-        .gnx-character-rarity {
-          position: absolute;
-          left: 9px;
-          bottom: 9px;
-          padding: 4px 8px;
-          border-radius: 999px;
-          background: rgba(0,0,0,.68);
-          font-size: 11px;
-          font-weight: 800;
-        }
-
-        .gnx-character-content {
-          padding: 13px;
-        }
-
-        .gnx-character-content h3 {
-          margin: 0 0 9px;
-          font-size: 16px;
-          line-height: 1.25;
-        }
-
-        .gnx-character-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 5px;
-        }
-
-        .gnx-character-meta span {
-          padding: 4px 7px;
-          border-radius: 7px;
-          background: rgba(255,255,255,.07);
-          font-size: 10px;
-          line-height: 1.2;
-          opacity: .78;
-        }
-
-        .gnx-character-empty {
-          padding: 50px 20px;
-          text-align: center;
-          border-radius: 16px;
-          background: rgba(255,255,255,.025);
-        }
-
-        .gnx-character-empty > span {
-          display: block;
-          margin-bottom: 10px;
-          font-size: 36px;
-        }
-
-        .gnx-character-empty h3 {
-          margin: 0 0 8px;
-        }
-
-        .gnx-character-empty p {
-          margin: 0 0 18px;
-          opacity: .65;
-        }
-
-        .gnx-character-empty button {
-          min-height: 42px;
-          padding: 0 18px;
-          border: 1px solid rgba(255,255,255,.14);
-          border-radius: 9px;
-          background: rgba(255,255,255,.07);
-          color: inherit;
-          cursor: pointer;
-          font-weight: 700;
-        }
-
-        @media (max-width: 900px) {
-          .gnx-character-filters {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .gnx-character-filters input {
-            grid-column: 1 / -1;
-          }
-        }
-
-        @media (max-width: 600px) {
-          .gnx-character-database {
-            padding: 18px;
-            border-radius: 16px;
-          }
-
-          .gnx-character-heading {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .gnx-character-count {
-            width: 100%;
-          }
-
-          .gnx-character-filters {
-            grid-template-columns: 1fr;
-          }
-
-          .gnx-character-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .gnx-character-content {
-            padding: 10px;
-          }
-
-          .gnx-character-content h3 {
-            font-size: 14px;
-          }
-        }
-      `}</style>
     </main>
   )
 }
