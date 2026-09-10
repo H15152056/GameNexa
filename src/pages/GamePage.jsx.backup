@@ -617,11 +617,8 @@ function GamePage() {
           </section>
         )}
 
-        {/* WHITEOUT SURVIVAL HUB */}
-        {isWhiteout && <WhiteoutHub />}
-
-        {/* DATABASE — Whiteout Survival Heroes now renders after the
-            Whiteout Survival Hub, as a separate Characters section */}
+        {/* DATABASE — Whiteout Survival Heroes now renders before the
+            Battle Maps hub below, per the requested section order */}
         <section className={`database-section ${isWhiteout ? 'whiteout-characters-section' : ''}`}>
           <div className="section-heading">
             <div>
@@ -1036,6 +1033,8 @@ function GamePage() {
             </div>
           )}
         </section>
+
+        {isWhiteout && <WhiteoutHub />}
 
         {/* FEATURED */}
         {featured.length > 0 && (
