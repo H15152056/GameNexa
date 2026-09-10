@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d9eef4"/><stop offset=".5" stop-color="#a9cbd5"/><stop offset="1" stop-color="#eaf5f7"/></linearGradient><pattern id="p" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M0 40 Q20 10 40 40 T80 40 M40 0 Q10 20 40 40 T40 80" fill="none" stroke="#8bb4c0" stroke-width="2" opacity=".35"/></pattern></defs>
+<rect width="1000" height="1000" fill="url(#g)"/><rect width="1000" height="1000" fill="url(#p)"/>
+<path d="M60 700 Q220 570 370 650 T650 520 T950 650" fill="none" stroke="#6d9daa" stroke-width="35" opacity=".35"/>
+<path d="M100 160 Q270 280 430 190 T760 260 T940 130" fill="none" stroke="#fff" stroke-width="75" opacity=".55"/>
+<text x="500" y="480" text-anchor="middle" font-family="sans-serif" font-size="34" fill="#416775" opacity=".8">WHITEOUTHQ MAP</text>
+<text x="500" y="520" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#547986">Replace this placeholder with your verified Whiteout Survival map asset</text>
+</svg>
