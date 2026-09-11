@@ -696,8 +696,9 @@ Premium Game + Character Database Design
   gap: 18px;
 }
 
+/* WHITEOUT DESKTOP — 4 HEROES PER ROW */
 .whiteout-character-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* =========================================================
@@ -2203,66 +2204,88 @@ Premium Game + Character Database Design
     animation-iteration-count: 1 !important;
   }
 }
+
 /* GameNexa hero intelligence cards */
+
 .character-card {
   background: linear-gradient(145deg, #081511 0%, #0c1f18 100%);
   border: 1px solid rgba(0, 255, 166, .28);
 }
+
 .character-card-image {
   background: #10231d;
 }
+
 .character-card-image img {
   object-fit: cover;
 }
+
 .character-card-content h3,
 .character-card-content p,
 .character-card-content strong,
 .character-card-content span {
   color: #f2fff9;
 }
+
 .character-role span,
 .character-description,
 .character-subtitle {
   color: #a8c2b7 !important;
 }
+
 .character-type {
   color: #00ff9c !important;
 }
+
 .character-rarity {
   color: #ffe58a !important;
 }
+
 .generation-badge {
   background: rgba(2, 15, 11, .92);
   color: #00ff9c;
   border: 1px solid rgba(0, 255, 166, .35);
 }
+
 .view-details-btn {
   color: #00150d !important;
   background: linear-gradient(90deg, #00ff9c, #9dff4f);
   font-weight: 800;
 }
+
 .modal-detail-grid .detail-box {
   background: #0a1713;
   border-color: rgba(0, 255, 166, .22);
 }
+
 .modal-detail-grid .detail-box span {
   color: #8eaea1;
 }
+
 .modal-detail-grid .detail-box strong {
   color: #f4fffa;
 }
+
 .detail-tier-box strong {
   color: #00ff9c !important;
   font-size: 1.25rem;
 }
+
 .modal-advice-section {
   background: linear-gradient(135deg, rgba(0,255,156,.08), rgba(0,0,0,.05));
   border: 1px solid rgba(0,255,156,.16);
   padding: 18px;
   border-radius: 12px;
 }
-.modal-advice-section h3 { color: #00ff9c; }
-.modal-advice-section p { color: #c9ded5; line-height: 1.75; }
+
+.modal-advice-section h3 {
+  color: #00ff9c;
+}
+
+.modal-advice-section p {
+  color: #c9ded5;
+  line-height: 1.75;
+}
 
 .whiteout-intel {
   margin: 26px 0 10px;
@@ -2272,17 +2295,75 @@ Premium Game + Character Database Design
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0,0,0,.22);
 }
-.whiteout-intel-heading h2 { margin: 7px 0 5px; color:#f4fffa; }
-.whiteout-intel-heading p { margin:0; color:#9db8ac; }
-.whiteout-intel-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px; }
-.intel-card { min-height:125px; padding:17px; background:#07100d; border:1px solid rgba(255,255,255,.07); border-radius:11px; }
-.intel-card span { display:block; color:#00ff9c; font-size:10px; font-weight:800; letter-spacing:.14em; }
-.intel-card strong { display:block; margin:10px 0 7px; color:#f4fffa; font-size:16px; line-height:1.35; }
-.intel-card small { color:#8fa99e; line-height:1.45; }
-@media(max-width:900px){.whiteout-intel-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.whiteout-intel{padding:20px}.whiteout-intel-grid{grid-template-columns:1fr}}
-.asset-credit-note { margin: 28px 0 8px; color:#6f887d; font-size:11px; line-height:1.6; }
 
+.whiteout-intel-heading h2 {
+  margin: 7px 0 5px;
+  color:#f4fffa;
+}
+
+.whiteout-intel-heading p {
+  margin:0;
+  color:#9db8ac;
+}
+
+.whiteout-intel-grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-top:22px;
+}
+
+.intel-card {
+  min-height:125px;
+  padding:17px;
+  background:#07100d;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:11px;
+}
+
+.intel-card span {
+  display:block;
+  color:#00ff9c;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.14em;
+}
+
+.intel-card strong {
+  display:block;
+  margin:10px 0 7px;
+  color:#f4fffa;
+  font-size:16px;
+  line-height:1.35;
+}
+
+.intel-card small {
+  color:#8fa99e;
+  line-height:1.45;
+}
+
+@media(max-width:900px){
+  .whiteout-intel-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:560px){
+  .whiteout-intel{
+    padding:20px;
+  }
+
+  .whiteout-intel-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+.asset-credit-note {
+  margin: 28px 0 8px;
+  color:#6f887d;
+  font-size:11px;
+  line-height:1.6;
+}
 
 /* =========================================================
    HERO INTELLIGENCE — CARD + PROFILE
@@ -2480,6 +2561,7 @@ Premium Game + Character Database Design
     grid-template-columns: repeat(3, minmax(0,1fr));
   }
 }
+
 .cms-live-content {
   margin: 28px 0;
   padding: 26px;
