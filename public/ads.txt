@@ -1,0 +1,14 @@
+# ads.txt — placeholder
+#
+# This file is required by Google AdSense (and most ad networks) to
+# verify who is authorized to sell ad inventory on this site.
+#
+# TODO (site owner): once you're approved for Google AdSense, replace
+# the line below with the exact line AdSense gives you in
+# "Sites" > "ads.txt" inside your AdSense account. It will look like:
+#
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+#
+# Do NOT enable ads or submit this site for AdSense review until the
+# real pub- ID above is in place — an empty/placeholder ads.txt is
+# fine before launch, but must be filled in before monetization.

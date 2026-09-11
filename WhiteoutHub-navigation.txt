@@ -1,0 +1,56 @@
+﻿        </p>
+      </div>
+
+      <div className="wnx-body">
+        {active !== 'overview' && (
+          <button
+            className="wnx-back"
+            onClick={() => setActive('overview')}
+          >
+            â† Back to Hub
+          </button>
+        )}
+
+        {active === 'overview' && (
+          <>
+            <div className="wnx-overview">
+              {NAV_ITEMS.map(([id, icon, title]) => {
+                const module = MODULES[id]
+
+                return (
+                  <button
+                    className="wnx-overview-card"
+                    key={id}
+                    onClick={() => setActive(id)}
+                  >
+                    <div className="icon">{icon}</div>
+
+                    <h3>{title}</h3>
+
+                    <p>
+                      {module?.intro ||
+                        'Tools and information for Whiteout Survival.'}
+                    </p>
+                  </button>
+                )
+              })}
+
+              <button
+                className="wnx-overview-card"
+                onClick={() => setActive('maps')}
+              >
+                <div className="icon">ðŸ—ºï¸</div>
+
+                <h3>Battle Maps</h3>
+
+                <p>
+                  View available Foundry Battle and
+                  Canyon Clash map images for planning.
+                </p>
+              </button>
+            </div>
+          </>
+        )}
+
+        {active === 'maps' && (
+          <div className="wnx-map-grid">
